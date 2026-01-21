@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+tests/test_deployment/test_deployment.py::TestAvailableTargets::test_get_available_targets_returns_dict PASSED [  9%]
+tests/test_deployment/test_deployment.py::TestAvailableTargets::test_availability_functions_return_bool PASSED [ 18%]
+tests/test_deployment/test_deployment.py::TestDeploymentBundle::test_bundle_creation PASSED [ 27%]
+tests/test_deployment/test_deployment.py::TestDeploymentBundle::test_bundle_has_artifacts PASSED [ 36%]
+tests/test_deployment/test_deployment.py::TestDeploymentBundle::test_bundle_serializable PASSED [ 45%]
+tests/test_deployment/test_deployment.py::TestONNXRuntimePackage::test_package_created PASSED [ 54%]
+tests/test_deployment/test_deployment.py::TestONNXRuntimePackage::test_package_contains_required_files PASSED [ 63%]
+tests/test_deployment/test_deployment.py::TestGracefulSkipping::test_tensorrt_skipped_when_unavailable PASSED [ 72%]
+tests/test_deployment/test_deployment.py::TestGracefulSkipping::test_no_silent_failures PASSED [ 81%]
+tests/test_deployment/test_deployment.py::TestManifest::test_manifest_created PASSED [ 90%]
+tests/test_deployment/test_deployment.py::TestManifest::test_manifest_contains_artifact_info PASSED [100%]
+
+============================= 11 passed in 0.30s ==============================

@@ -1,0 +1,27 @@
+{
+  "variant_id": "baseline_67862a3e92a7",
+  "source_hash": "67862a3e92a74b0dcbbc24f8ae275a3499f9cda29192b50838e553afabdf40db",
+  "generated_at": "2026-01-20T15:05:57.569218+00:00",
+  "artifacts": {
+    "android": {
+      "status": "skipped",
+      "path": null,
+      "format": "tflite"
+    },
+    "ios": {
+      "status": "skipped",
+      "path": null,
+      "format": "mlmodel"
+    },
+    "cpu": {
+      "status": "success",
+      "path": "output\\job_e9ec0269aae3\\deployment\\cpu\\baseline_onnxruntime",
+      "format": "onnx"
+    },
+    "gpu": {
+      "status": "skipped",
+      "path": null,
+      "format": "plan"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 16 items
+
+tests/test_benchmark/test_accuracy.py::TestAccuracyDelta::test_calculate_drop_when_lower PASSED [  6%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyDelta::test_calculate_drop_when_equal PASSED [ 12%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyDelta::test_calculate_drop_when_improved PASSED [ 18%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyDelta::test_threshold_exactly_2_percent PASSED [ 25%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyDelta::test_threshold_exceeded PASSED [ 31%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyResult::test_result_serializable PASSED [ 37%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyResult::test_result_is_frozen PASSED [ 43%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyConstraint::test_constraint_passes_within_threshold PASSED [ 50%]
+tests/test_benchmark/test_accuracy.py::TestAccuracyConstraint::test_constraint_raises_when_exceeded PASSED [ 56%]
+tests/test_benchmark/test_accuracy.py::TestDeterminism::test_same_input_same_result SKIPPED [ 62%]
+tests/test_benchmark/test_latency.py::TestLatencyResult::test_result_serializable PASSED [ 68%]
+tests/test_benchmark/test_latency.py::TestLatencyResult::test_result_is_frozen PASSED [ 75%]
+tests/test_benchmark/test_latency.py::TestLatencyMeasurement::test_measure_with_warmup SKIPPED [ 81%]
+tests/test_benchmark/test_latency.py::TestLatencyMeasurement::test_statistics_computed SKIPPED [ 87%]
+tests/test_benchmark/test_latency.py::TestLatencyMeasurement::test_measurement_is_reproducible SKIPPED [ 93%]
+tests/test_benchmark/test_latency.py::TestSampleInput::test_creates_correct_shape SKIPPED [100%]
+
+======================== 11 passed, 5 skipped in 0.13s ========================

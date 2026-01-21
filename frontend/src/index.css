@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Custom SOAC theme */
+:root {
+  --soac-primary: #6366f1;
+  --soac-secondary: #4f46e5;
+  --soac-success: #10b981;
+  --soac-warning: #f59e0b;
+  --soac-error: #ef4444;
+  --soac-dark: #1e1e2e;
+  --soac-darker: #11111b;
+}
+
+body {
+  @apply bg-gray-900 text-gray-100 antialiased;
+}
+
+.btn-primary {
+  @apply bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.card {
+  @apply bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700;
+}
+
+.input {
+  @apply bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent;
+}

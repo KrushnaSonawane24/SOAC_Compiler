@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+tests/test_reproducible/test_fingerprint.py::TestBuildFingerprint::test_fingerprint_is_deterministic PASSED [  9%]
+tests/test_reproducible/test_fingerprint.py::TestBuildFingerprint::test_different_config_produces_different_fingerprint PASSED [ 18%]
+tests/test_reproducible/test_fingerprint.py::TestBuildFingerprint::test_fingerprint_save_and_load PASSED [ 27%]
+tests/test_reproducible/test_fingerprint.py::TestHashFunctions::test_hash_file PASSED [ 36%]
+tests/test_reproducible/test_fingerprint.py::TestHashFunctions::test_hash_config PASSED [ 45%]
+tests/test_reproducible/test_fingerprint.py::TestHashFunctions::test_different_config_different_hash PASSED [ 54%]
+tests/test_reproducible/test_fingerprint.py::TestReproducibleContext::test_reproducible_context_fixes_random PASSED [ 63%]
+tests/test_reproducible/test_fingerprint.py::TestReproducibleContext::test_normal_mode_different PASSED [ 72%]
+tests/test_reproducible/test_fingerprint.py::TestJobConfigBuildMode::test_default_is_normal PASSED [ 81%]
+tests/test_reproducible/test_fingerprint.py::TestJobConfigBuildMode::test_reproducible_mode PASSED [ 90%]
+tests/test_reproducible/test_fingerprint.py::TestJobConfigBuildMode::test_reproducible_seed PASSED [100%]
+
+============================= 11 passed in 1.32s ==============================

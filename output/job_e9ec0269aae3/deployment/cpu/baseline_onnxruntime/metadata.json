@@ -1,0 +1,26 @@
+{
+  "model_name": "baseline",
+  "format": "onnx",
+  "runtime": "onnxruntime",
+  "inputs": [
+    {
+      "name": "data",
+      "shape": [
+        1,
+        3,
+        224,
+        224
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "reshape_out",
+      "shape": [
+        1,
+        1000
+      ]
+    }
+  ],
+  "opset_version": 17
+}

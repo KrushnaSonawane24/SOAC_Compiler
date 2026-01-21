@@ -1,0 +1,21 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 10 items
+
+tests/test_policies/test_policies.py::TestPolicyWeights::test_all_policies_have_weights PASSED [ 10%]
+tests/test_policies/test_policies.py::TestPolicyWeights::test_accuracy_first_prioritizes_accuracy PASSED [ 20%]
+tests/test_policies/test_policies.py::TestPolicyWeights::test_latency_first_prioritizes_latency PASSED [ 30%]
+tests/test_policies/test_policies.py::TestPolicyScoring::test_accuracy_first_prefers_high_accuracy PASSED [ 40%]
+tests/test_policies/test_policies.py::TestPolicyScoring::test_latency_first_prefers_fast PASSED [ 50%]
+tests/test_policies/test_policies.py::TestDifferentPoliciesDifferentSelection::test_same_variants_different_winner PASSED [ 60%]
+tests/test_policies/test_policies.py::TestAccuracyFirstNeverSelectsLessAccurate::test_accuracy_first_prefers_accurate_over_fast PASSED [ 70%]
+tests/test_policies/test_policies.py::TestVariantPreference::test_accuracy_first_prefers_baseline PASSED [ 80%]
+tests/test_policies/test_policies.py::TestVariantPreference::test_latency_first_prefers_int8 PASSED [ 90%]
+tests/test_policies/test_policies.py::TestPolicyExplanation::test_explanation_includes_rationale PASSED [100%]
+
+============================= 10 passed in 0.05s ==============================

@@ -1,0 +1,36 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 14 items
+
+tests/test_optimizer/test_alo_engine.py::TestAccuracyConstraint::test_variant_within_threshold_accepted PASSED [  7%]
+tests/test_optimizer/test_alo_engine.py::TestAccuracyConstraint::test_variant_exceeding_threshold_rejected FAILED [ 14%]
+tests/test_optimizer/test_alo_engine.py::TestAccuracyConstraint::test_generation_failures_rejected PASSED [ 21%]
+tests/test_optimizer/test_alo_engine.py::TestVariantRanking::test_lowest_latency_ranked_first PASSED [ 28%]
+tests/test_optimizer/test_alo_engine.py::TestVariantRanking::test_ranking_is_deterministic PASSED [ 35%]
+tests/test_optimizer/test_alo_engine.py::TestVariantRanking::test_preference_order_for_ties PASSED [ 42%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_selects_best_variant PASSED [ 50%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_excludes_rejected_variants PASSED [ 57%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_raises_when_no_valid_variants PASSED [ 64%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_decision_trace_complete PASSED [ 71%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_decision_trace_serializable PASSED [ 78%]
+tests/test_optimizer/test_alo_engine.py::TestBestVariantSelection::test_selection_reason_is_explanatory PASSED [ 85%]
+tests/test_optimizer/test_alo_engine.py::TestDeterminism::test_selection_is_deterministic PASSED [ 92%]
+tests/test_optimizer/test_alo_engine.py::TestDeterminism::test_ranking_order_is_stable PASSED [100%]
+
+================================== FAILURES ===================================
+______ TestAccuracyConstraint.test_variant_exceeding_threshold_rejected _______
+tests\test_optimizer\test_alo_engine.py:37: in test_variant_exceeding_threshold_rejected
+    assert "5%" in rejected[0].rejection_reason or "0.05" in rejected[0].rejection_reason
+E   AssertionError: assert ('5%' in 'Accuracy drop 5.00% > 2.00%' or '0.05' in 'Accuracy drop 5.00% > 2.00%')
+E    +  where 'Accuracy drop 5.00% > 2.00%' = RejectedVariant(variant_id='rejected_abc123', variant_type=<VariantType.INT8: 'int8'>, rejection_reason='Accuracy drop 5.00% > 2.00%', accuracy_drop=0.05).rejection_reason
+E    +  and   'Accuracy drop 5.00% > 2.00%' = RejectedVariant(variant_id='rejected_abc123', variant_type=<VariantType.INT8: 'int8'>, rejection_reason='Accuracy drop 5.00% > 2.00%', accuracy_drop=0.05).rejection_reason
+=========================== short test summary info ===========================
+FAILED tests/test_optimizer/test_alo_engine.py::TestAccuracyConstraint::test_variant_exceeding_threshold_rejected - AssertionError: assert ('5%' in 'Accuracy drop 5.00% > 2.00%' or '0.05' in 'Accuracy drop 5.00% > 2.00%')
+ +  where 'Accuracy drop 5.00% > 2.00%' = RejectedVariant(variant_id='rejected_abc123', variant_type=<VariantType.INT8: 'int8'>, rejection_reason='Accuracy drop 5.00% > 2.00%', accuracy_drop=0.05).rejection_reason
+ +  and   'Accuracy drop 5.00% > 2.00%' = RejectedVariant(variant_id='rejected_abc123', variant_type=<VariantType.INT8: 'int8'>, rejection_reason='Accuracy drop 5.00% > 2.00%', accuracy_drop=0.05).rejection_reason
+======================== 1 failed, 13 passed in 0.35s =========================

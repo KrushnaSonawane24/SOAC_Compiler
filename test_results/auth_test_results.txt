@@ -1,0 +1,34 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 14 items
+
+tests/test_auth/test_auth.py::TestRegistration::test_register_success PASSED [  7%]
+tests/test_auth/test_auth.py::TestRegistration::test_register_duplicate_email PASSED [ 14%]
+tests/test_auth/test_auth.py::TestLogin::test_login_success PASSED       [ 21%]
+tests/test_auth/test_auth.py::TestLogin::test_login_invalid_email PASSED [ 28%]
+tests/test_auth/test_auth.py::TestLogin::test_login_invalid_password PASSED [ 35%]
+tests/test_auth/test_auth.py::TestCurrentUser::test_me_with_token PASSED [ 42%]
+tests/test_auth/test_auth.py::TestCurrentUser::test_me_without_token PASSED [ 50%]
+tests/test_auth/test_auth.py::TestTokenVerification::test_valid_token PASSED [ 57%]
+tests/test_auth/test_auth.py::TestTokenVerification::test_expired_token ERROR [ 64%]
+tests/test_auth/test_auth.py::TestUserIsolation::test_user_cannot_access_other_user_jobs PASSED [ 71%]
+tests/test_auth/test_auth.py::TestUserIsolation::test_user_can_access_own_jobs PASSED [ 78%]
+tests/test_auth/test_auth.py::TestOAuthState::test_state_generation_and_verification PASSED [ 85%]
+tests/test_auth/test_auth.py::TestOAuthState::test_state_single_use PASSED [ 92%]
+tests/test_auth/test_auth.py::TestOAuthState::test_invalid_state_rejected PASSED [100%]
+
+=================================== ERRORS ====================================
+_________ ERROR at setup of TestTokenVerification.test_expired_token __________
+tests\test_auth\test_auth.py:38: in test_user
+    return store.register(
+backend\auth\user_store.py:80: in register
+    raise UserExistsError(email)
+E   backend.auth.exceptions.UserExistsError: [USER_EXISTS] User with email already exists
+=========================== short test summary info ===========================
+ERROR tests/test_auth/test_auth.py::TestTokenVerification::test_expired_token - backend.auth.exceptions.UserExistsError: [USER_EXISTS] User with email already exists
+========================= 13 passed, 1 error in 5.85s =========================

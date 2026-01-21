@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+tests/test_api/test_jobs.py::TestHealthEndpoint::test_health_returns_ok PASSED [  9%]
+tests/test_api/test_jobs.py::TestJobsEndpoint::test_list_jobs_empty PASSED [ 18%]
+tests/test_api/test_jobs.py::TestJobsEndpoint::test_create_job_requires_file PASSED [ 27%]
+tests/test_api/test_jobs.py::TestJobsEndpoint::test_get_nonexistent_job PASSED [ 36%]
+tests/test_api/test_jobs.py::TestJobStateTransitions::test_valid_transitions PASSED [ 45%]
+tests/test_api/test_jobs.py::TestJobStateTransitions::test_invalid_transitions PASSED [ 54%]
+tests/test_api/test_jobs.py::TestJobStateTransitions::test_failure_always_allowed PASSED [ 63%]
+tests/test_api/test_jobs.py::TestJobStore::test_add_and_get PASSED       [ 72%]
+tests/test_api/test_jobs.py::TestJobStore::test_list_filters_by_user PASSED [ 81%]
+tests/test_api/test_jobs.py::TestArtifacts::test_artifacts_empty_before_completion PASSED [ 90%]
+tests/test_api/test_jobs.py::TestLogs::test_logs_nonexistent_job PASSED  [100%]
+
+============================= 11 passed in 4.46s ==============================

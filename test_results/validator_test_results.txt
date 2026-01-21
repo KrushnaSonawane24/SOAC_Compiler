@@ -1,0 +1,51 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 40 items
+
+tests/test_validator/test_architecture_rules.py::TestShapeNormalization::test_normalize_static_shape PASSED [  2%]
+tests/test_validator/test_architecture_rules.py::TestShapeNormalization::test_normalize_none_to_dynamic PASSED [  5%]
+tests/test_validator/test_architecture_rules.py::TestShapeNormalization::test_normalize_string_batch PASSED [  7%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_valid_classification_nchw PASSED [ 10%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_valid_classification_dynamic_batch PASSED [ 12%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_invalid_classification_wrong_size PASSED [ 15%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_valid_detection_300 PASSED [ 17%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_valid_detection_640 PASSED [ 20%]
+tests/test_validator/test_architecture_rules.py::TestInputShapeValidation::test_valid_audio_shape PASSED [ 22%]
+tests/test_validator/test_architecture_rules.py::TestOperatorCounting::test_count_operators PASSED [ 25%]
+tests/test_validator/test_architecture_rules.py::TestArchitectureDetection::test_detect_mobilenet_pattern PASSED [ 27%]
+tests/test_validator/test_architecture_rules.py::TestArchitectureDetection::test_detect_resnet_pattern PASSED [ 30%]
+tests/test_validator/test_architecture_rules.py::TestArchitectureDetection::test_no_detection_for_unknown PASSED [ 32%]
+tests/test_validator/test_architecture_rules.py::TestArchitectureDetection::test_empty_operators_return_none PASSED [ 35%]
+tests/test_validator/test_architecture_rules.py::TestSupportedArchitectureCheck::test_mobilenet_v2_supported PASSED [ 37%]
+tests/test_validator/test_architecture_rules.py::TestSupportedArchitectureCheck::test_resnet50_supported PASSED [ 40%]
+tests/test_validator/test_architecture_rules.py::TestSupportedArchitectureCheck::test_yolov5n_supported PASSED [ 42%]
+tests/test_validator/test_architecture_rules.py::TestSupportedArchitectureCheck::test_custom_not_supported PASSED [ 45%]
+tests/test_validator/test_architecture_rules.py::TestSupportedArchitectureCheck::test_case_insensitive PASSED [ 47%]
+tests/test_validator/test_architecture_rules.py::TestFingerprintMatching::test_fingerprint_scores PASSED [ 50%]
+tests/test_validator/test_model_validator.py::TestSupportedFormats::test_supported_formats_list PASSED [ 52%]
+tests/test_validator/test_model_validator.py::TestSupportedFormats::test_unsupported_format_rejected PASSED [ 55%]
+tests/test_validator/test_model_validator.py::TestSupportedFormats::test_nonexistent_file_rejected PASSED [ 57%]
+tests/test_validator/test_model_validator.py::TestValidModels::test_valid_mobilenet_accepted PASSED [ 60%]
+tests/test_validator/test_model_validator.py::TestValidModels::test_valid_resnet18_accepted PASSED [ 62%]
+tests/test_validator/test_model_validator.py::TestValidModels::test_metadata_contains_required_fields PASSED [ 65%]
+tests/test_validator/test_model_validator.py::TestTrainingGraphRejection::test_training_ops_detected PASSED [ 67%]
+tests/test_validator/test_model_validator.py::TestTrainingGraphRejection::test_training_graph_rejected PASSED [ 70%]
+tests/test_validator/test_model_validator.py::TestTrainingGraphRejection::test_optimizer_ops_blacklisted PASSED [ 72%]
+tests/test_validator/test_model_validator.py::TestTrainingGraphRejection::test_loss_functions_blacklisted PASSED [ 75%]
+tests/test_validator/test_model_validator.py::TestRandomOpRejection::test_random_ops_detected PASSED [ 77%]
+tests/test_validator/test_model_validator.py::TestRandomOpRejection::test_random_graph_rejected PASSED [ 80%]
+tests/test_validator/test_model_validator.py::TestRandomOpRejection::test_all_random_ops_detected PASSED [ 82%]
+tests/test_validator/test_model_validator.py::TestUnsupportedArchitecture::test_custom_cnn_rejected PASSED [ 85%]
+tests/test_validator/test_model_validator.py::TestUnsupportedArchitecture::test_supported_architectures_list PASSED [ 87%]
+tests/test_validator/test_model_validator.py::TestExceptionDetails::test_exception_has_reason_code PASSED [ 90%]
+tests/test_validator/test_model_validator.py::TestExceptionDetails::test_exception_has_context PASSED [ 92%]
+tests/test_validator/test_model_validator.py::TestExceptionDetails::test_exception_to_dict PASSED [ 95%]
+tests/test_validator/test_model_validator.py::TestMetadataSerialization::test_metadata_to_dict PASSED [ 97%]
+tests/test_validator/test_model_validator.py::TestMetadataSerialization::test_metadata_is_frozen PASSED [100%]
+
+============================= 40 passed in 2.74s ==============================

@@ -1,0 +1,33 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 22 items
+
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_normalize_simple_name PASSED [  4%]
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_removes_tf_prefix PASSED [  9%]
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_replaces_special_chars PASSED [ 13%]
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_lowercase PASSED [ 18%]
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_collapse_underscores PASSED [ 22%]
+tests/test_compiler/test_graph_normalizer.py::TestNameNormalization::test_empty_becomes_tensor PASSED [ 27%]
+tests/test_compiler/test_graph_normalizer.py::TestTopologicalSort::test_sort_linear_graph PASSED [ 31%]
+tests/test_compiler/test_graph_normalizer.py::TestTopologicalSort::test_sort_handles_multiple_inputs PASSED [ 36%]
+tests/test_compiler/test_graph_normalizer.py::TestGraphNormalization::test_normalize_simple_graph PASSED [ 40%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_simple_onnx_canonicalization PASSED [ 45%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_hash_is_deterministic PASSED [ 50%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_identity_nodes_removed PASSED [ 54%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_older_opset_upgraded PASSED [ 59%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_unsupported_op_rejected PASSED [ 63%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_metadata_populated PASSED [ 68%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestCanonicalizeModel::test_to_dict_serialization PASSED [ 72%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestFormatDetection::test_supported_formats_list PASSED [ 77%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestFormatDetection::test_unsupported_format_rejected PASSED [ 81%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestFormatDetection::test_nonexistent_file_rejected PASSED [ 86%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestGraphHashing::test_hash_is_sha256 PASSED [ 90%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestGraphHashing::test_hash_deterministic PASSED [ 95%]
+tests/test_compiler/test_onnx_canonicalizer.py::TestGraphHashing::test_different_models_different_hash PASSED [100%]
+
+============================= 22 passed in 0.41s ==============================

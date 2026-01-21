@@ -1,0 +1,39 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 22 items
+
+tests/test_sandbox/test_cleanup.py::TestCleanupOnSuccess::test_container_removed_after_success SKIPPED [  4%]
+tests/test_sandbox/test_cleanup.py::TestCleanupOnFailure::test_container_removed_after_nonzero_exit SKIPPED [  9%]
+tests/test_sandbox/test_cleanup.py::TestCleanupOnTimeout::test_container_removed_after_timeout SKIPPED [ 13%]
+tests/test_sandbox/test_cleanup.py::TestNoOrphans::test_no_soac_containers_after_tests SKIPPED [ 18%]
+tests/test_sandbox/test_docker_runner.py::TestValidation::test_valid_job_id PASSED [ 22%]
+tests/test_sandbox/test_docker_runner.py::TestValidation::test_invalid_job_id_rejected PASSED [ 27%]
+tests/test_sandbox/test_docker_runner.py::TestValidation::test_empty_command_rejected PASSED [ 31%]
+tests/test_sandbox/test_docker_runner.py::TestValidation::test_non_string_command_rejected PASSED [ 36%]
+tests/test_sandbox/test_docker_runner.py::TestBasicExecution::test_simple_echo SKIPPED [ 40%]
+tests/test_sandbox/test_docker_runner.py::TestBasicExecution::test_python_script_execution SKIPPED [ 45%]
+tests/test_sandbox/test_docker_runner.py::TestBasicExecution::test_write_to_output_dir SKIPPED [ 50%]
+tests/test_sandbox/test_docker_runner.py::TestBasicExecution::test_failing_command_returns_exit_code SKIPPED [ 54%]
+tests/test_sandbox/test_docker_runner.py::TestResourceLimits::test_custom_memory_limit SKIPPED [ 59%]
+tests/test_sandbox/test_docker_runner.py::TestResourceLimits::test_custom_cpu_limit SKIPPED [ 63%]
+tests/test_sandbox/test_docker_runner.py::TestContainerLifecycle::test_container_removed_after_success SKIPPED [ 68%]
+tests/test_sandbox/test_docker_runner.py::TestContainerLifecycle::test_container_removed_after_failure SKIPPED [ 72%]
+tests/test_sandbox/test_isolation.py::TestNetworkIsolation::test_no_network_access SKIPPED [ 77%]
+tests/test_sandbox/test_isolation.py::TestNetworkIsolation::test_dns_resolution_fails SKIPPED [ 81%]
+tests/test_sandbox/test_isolation.py::TestFilesystemIsolation::test_cannot_write_to_root_filesystem SKIPPED [ 86%]
+tests/test_sandbox/test_isolation.py::TestFilesystemIsolation::test_cannot_write_to_input_dir SKIPPED [ 90%]
+tests/test_sandbox/test_isolation.py::TestFilesystemIsolation::test_can_write_to_tmp SKIPPED [ 95%]
+tests/test_sandbox/test_isolation.py::TestJobIsolation::test_two_jobs_isolated SKIPPED [100%]
+
+============================== warnings summary ===============================
+backend\sandbox\docker_runner.py:166
+  C:\Users\Aatif\Downloads\SOAC v2\backend\sandbox\docker_runner.py:166: SyntaxWarning: invalid escape sequence '\ '
+    - Directory cannot be system paths like C:\ or /
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 passed, 18 skipped, 1 warning in 0.13s ===================

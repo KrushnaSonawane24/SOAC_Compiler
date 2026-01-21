@@ -1,0 +1,119 @@
+{
+  "job_id": "job_e9ec0269aae3",
+  "success": true,
+  "final_stage": "completed",
+  "input_path": "mobilenetv2.onnx",
+  "selected_variant": "baseline_67862a3e92a7",
+  "deployment_bundle": "output\\job_e9ec0269aae3\\deployment",
+  "stage_results": [
+    {
+      "stage": "validating",
+      "success": true,
+      "duration_ms": 69.23669995740056,
+      "message": "Validation passed",
+      "artifacts": {}
+    },
+    {
+      "stage": "canonicalizing",
+      "success": true,
+      "duration_ms": 457.19350001309067,
+      "message": "Canonical hash: 67862a3e92a74b0d",
+      "artifacts": {
+        "canonical": "output\\job_e9ec0269aae3\\canonical\\canonical_67862a3e92a74b0d.onnx"
+      }
+    },
+    {
+      "stage": "optimizing",
+      "success": true,
+      "duration_ms": 3311.743500002194,
+      "message": "Generated 4 variants (4 valid)",
+      "artifacts": {}
+    },
+    {
+      "stage": "benchmarking",
+      "success": true,
+      "duration_ms": 2114.453600021079,
+      "message": "Benchmarked 4 variants",
+      "artifacts": {}
+    },
+    {
+      "stage": "selecting",
+      "success": true,
+      "duration_ms": 0.1775999553501606,
+      "message": "Selected: baseline_67862a3e92a7",
+      "artifacts": {
+        "selected": "output\\job_e9ec0269aae3\\variants\\baseline_67862a3e92a7.onnx"
+      }
+    },
+    {
+      "stage": "deploying",
+      "success": true,
+      "duration_ms": 46.195800008717924,
+      "message": "Deployment: 1 success, 3 skipped",
+      "artifacts": {
+        "bundle": "output\\job_e9ec0269aae3\\deployment"
+      }
+    }
+  ],
+  "error": null,
+  "total_duration_ms": 6001.957400003448,
+  "metadata": {
+    "validation": {
+      "is_valid": true,
+      "model_type": "classification",
+      "architecture": {
+        "name": "mobilenet_v2",
+        "family": "mobilenet",
+        "variant": "v2",
+        "confidence": 1.0
+      },
+      "format": "onnx",
+      "inputs": [
+        {
+          "name": "data",
+          "shape": [
+            1,
+            3,
+            224,
+            224
+          ],
+          "dtype": "float"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mobilenetv20_output_flatten0_reshape0",
+          "shape": [
+            1,
+            1000
+          ],
+          "dtype": "float"
+        }
+      ],
+      "operator_count": 155,
+      "operators": [
+        "BatchNormalization",
+        "GlobalAveragePool",
+        "Reshape",
+        "Relu",
+        "Conv",
+        "Add"
+      ],
+      "file_path": "mobilenetv2.onnx",
+      "file_hash": "c1c513582d56afceff8516c73804e484c81c6a830712ab6d682253f4a3cd042f",
+      "validation_details": {
+        "onnx_ir_version": 3,
+        "onnx_opset_version": 7,
+        "producer_name": "unknown"
+      }
+    },
+    "canonical_hash": "67862a3e92a74b0dcbbc24f8ae275a3499f9cda29192b50838e553afabdf40db",
+    "selected_variant_id": "baseline_67862a3e92a7",
+    "selection_reason": "Selected baseline_67862a3e92a7: lowest latency (3.07ms), type preference (baseline)",
+    "deployment_summary": {
+      "successful": 1,
+      "skipped": 3,
+      "failed": 0
+    }
+  }
+}

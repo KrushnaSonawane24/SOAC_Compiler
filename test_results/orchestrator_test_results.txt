@@ -1,0 +1,26 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 15 items
+
+tests/test_orchestrator/test_pipeline.py::TestStateMachine::test_valid_transitions PASSED [  6%]
+tests/test_orchestrator/test_pipeline.py::TestStateMachine::test_invalid_transitions PASSED [ 13%]
+tests/test_orchestrator/test_pipeline.py::TestStateMachine::test_failure_always_allowed PASSED [ 20%]
+tests/test_orchestrator/test_pipeline.py::TestStateMachine::test_terminal_stages PASSED [ 26%]
+tests/test_orchestrator/test_pipeline.py::TestJobContext::test_context_creation PASSED [ 33%]
+tests/test_orchestrator/test_pipeline.py::TestJobContext::test_context_directories PASSED [ 40%]
+tests/test_orchestrator/test_pipeline.py::TestJobConfig::test_default_config PASSED [ 46%]
+tests/test_orchestrator/test_pipeline.py::TestJobConfig::test_config_serializable PASSED [ 53%]
+tests/test_orchestrator/test_pipeline.py::TestJobResult::test_result_serializable SKIPPED [ 60%]
+tests/test_orchestrator/test_pipeline.py::TestE2EPipeline::test_full_pipeline_success SKIPPED [ 66%]
+tests/test_orchestrator/test_pipeline.py::TestE2EPipeline::test_deployment_artifacts_created SKIPPED [ 73%]
+tests/test_orchestrator/test_pipeline.py::TestE2EPipeline::test_stage_results_recorded SKIPPED [ 80%]
+tests/test_orchestrator/test_pipeline.py::TestE2EPipeline::test_logs_captured SKIPPED [ 86%]
+tests/test_orchestrator/test_pipeline.py::TestFailureHandling::test_invalid_model_fails_validation PASSED [ 93%]
+tests/test_orchestrator/test_pipeline.py::TestFailureHandling::test_nonexistent_file_fails PASSED [100%]
+
+======================== 10 passed, 5 skipped in 0.17s ========================

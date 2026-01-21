@@ -1,0 +1,22 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.9, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\Aatif\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Aatif\Downloads\SOAC v2
+configfile: pyproject.toml
+plugins: anyio-3.7.1, langsmith-0.6.2, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 11 items
+
+tests/test_simulation/test_failures.py::TestSimulationConfig::test_job_config_has_simulation_flags PASSED [  9%]
+tests/test_simulation/test_failures.py::TestSimulationConfig::test_has_simulated_failures_detects_flags PASSED [ 18%]
+tests/test_simulation/test_failures.py::TestSimulationConfig::test_create_simulation_config PASSED [ 27%]
+tests/test_simulation/test_failures.py::TestFailureInjection::test_accuracy_drop_injection PASSED [ 36%]
+tests/test_simulation/test_failures.py::TestFailureInjection::test_latency_spike_injection PASSED [ 45%]
+tests/test_simulation/test_failures.py::TestFailureInjection::test_memory_exceed_injection PASSED [ 54%]
+tests/test_simulation/test_failures.py::TestFailureInjection::test_no_injection_without_config PASSED [ 63%]
+tests/test_simulation/test_failures.py::TestAccuracyDropRejection::test_simulated_accuracy_drop_exceeds_threshold PASSED [ 72%]
+tests/test_simulation/test_failures.py::TestAccuracyDropRejection::test_simulated_accuracy_drop_within_threshold PASSED [ 81%]
+tests/test_simulation/test_failures.py::TestNormalModeUnaffected::test_normal_config_no_simulation PASSED [ 90%]
+tests/test_simulation/test_failures.py::TestNormalModeUnaffected::test_normal_mode_metrics_unchanged PASSED [100%]
+
+============================= 11 passed in 0.43s ==============================

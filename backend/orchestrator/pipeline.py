@@ -21,7 +21,7 @@ RULES:
 import logging
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from .exceptions import (
     PipelineStage,
@@ -263,6 +263,51 @@ class SOACPipeline:
                 accuracy_threshold=self.ctx.config.accuracy_threshold,
             )
             
+            # Calculate summary metrics for frontend
+            try:
+                # Find baseline (Original or Canonical)
+                baseline = next((v for v in variants if v.variant_type == VariantType.BASELINE and v.is_valid), None)
+                if not baseline:
+                     # Fallback to first one if no explicit baseline
+                     baseline = variants[0] if variants else None
+                
+                selected = selection.variant
+                
+                summary = {
+                    "baseline_latency": None,
+                    "selected_latency": None,
+                    "speedup": None,
+                    "baseline_size": None,
+                    "selected_size": None,
+                    "size_reduction": None,
+                    "baseline_accuracy": None,
+                    "selected_accuracy": None,
+                    "accuracy_drop": None
+                }
+
+                if baseline and baseline.metrics:
+                    summary["baseline_latency"] = baseline.metrics.latency_ms
+                    summary["baseline_size"] = baseline.size_bytes
+                    summary["baseline_accuracy"] = baseline.metrics.accuracy
+                
+                if selected and selected.metrics:
+                    summary["selected_latency"] = selected.metrics.latency_ms
+                    summary["selected_size"] = selected.size_bytes
+                    summary["selected_accuracy"] = selected.metrics.accuracy
+                    summary["accuracy_drop"] = selected.metrics.accuracy_drop
+
+                # Calculate improvements
+                if summary["baseline_latency"] and summary["selected_latency"] and summary["selected_latency"] > 0:
+                     summary["speedup"] = round(summary["baseline_latency"] / summary["selected_latency"], 2)
+                
+                if summary["baseline_size"] and summary["selected_size"] and summary["baseline_size"] > 0:
+                     summary["size_reduction"] = round((summary["baseline_size"] - summary["selected_size"]) / summary["baseline_size"] * 100, 1)
+
+                self.ctx.metadata["benchmark_summary"] = summary
+                
+            except Exception as e:
+                logger.warning(f"Failed to calculate benchmark summary: {e}")
+
             selected = selection.variant
             self.ctx.add_artifact("selected_variant", selected.onnx_path)
             self.ctx.metadata["selected_variant_id"] = selected.variant_id
@@ -282,7 +327,7 @@ class SOACPipeline:
         except Exception as e:
             raise SelectionFailedError(self.ctx.job_id, str(e), e)
     
-    def run_deployment(self, selection) -> Path:
+    def run_deployment(self, selection, canonical_path: Optional[Path] = None) -> Path:
         """Stage 6: Generate deployment artifacts."""
         self._transition(PipelineStage.DEPLOYING)
         start = time.perf_counter()
@@ -295,6 +340,7 @@ class SOACPipeline:
                 variant_id=selection.variant.variant_id,
                 source_hash=selection.variant.graph_hash,
                 output_dir=self.ctx.deployment_dir,
+                canonical_path=canonical_path,
             )
             
             self.ctx.add_artifact("deployment", bundle.output_dir)
@@ -370,7 +416,7 @@ class SOACPipeline:
                 selected_id = selection.variant.variant_id
                 
                 # Stage 6: Deployment
-                deployment_path = self.run_deployment(selection)
+                deployment_path = self.run_deployment(selection, canonical_path=canonical_path)
                 
                 # Generate build fingerprint
                 config_hash = hash_config(self.ctx.config)
@@ -420,6 +466,7 @@ class SOACPipeline:
                     total_duration_ms=total_duration,
                     logs=self.ctx.logs,
                     metadata=self.ctx.metadata,
+                    artifacts={k: str(v) for k, v in self.ctx.artifacts.items()},
                 )
             
         except PipelineError as e:
@@ -447,6 +494,7 @@ def run_soac_job(
     config: Optional[JobConfig] = None,
     job_id: Optional[str] = None,
     work_dir: Optional[Path] = None,
+    log_callback: Optional[Any] = None,
 ) -> JobResult:
     """
     Run a SOAC optimization job.
@@ -458,6 +506,7 @@ def run_soac_job(
         config: Job configuration.
         job_id: Optional job ID.
         work_dir: Optional work directory.
+        log_callback: Optional callback for real-time logging.
     
     Returns:
         JobResult with all artifacts and status.
@@ -474,6 +523,7 @@ def run_soac_job(
         config=config,
         job_id=job_id,
         work_dir=work_dir,
+        log_callback=log_callback,
     )
     
     pipeline = SOACPipeline(ctx)

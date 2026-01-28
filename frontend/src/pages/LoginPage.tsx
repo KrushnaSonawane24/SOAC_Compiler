@@ -35,8 +35,13 @@ export const LoginPage: React.FC = () => {
             <div className="max-w-md w-full space-y-8">
                 {/* Logo */}
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-white">
-                        <span className="text-indigo-500">SOAC</span>
+                    <div className="mx-auto w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-4 transform hover:scale-105 transition-transform duration-300">
+                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+                        SOAC v2
                     </h1>
                     <p className="mt-2 text-gray-400">Self-Optimizing AI Compiler</p>
                 </div>

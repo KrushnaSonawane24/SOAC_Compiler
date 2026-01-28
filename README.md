@@ -98,6 +98,20 @@ docker-compose up --build
 - JWT-based authentication
 - OAuth with GitHub and Google
 - Per-user job isolation
+
+## 📱 Deployment & Demos
+
+We provide ready-to-use deployment pipelines for Android and NVIDIA PC.
+
+- **Architecture:** See [ARCHITECTURE.md](ARCHITECTURE.md) for details on the deployment pipeline.
+- **Android TFLite:** See [demos/android/README.md](demos/android/README.md).
+- **PC TensorRT:** See [demos/pc/run_inference.py](demos/pc/run_inference.py).
+
+### Verification
+Run the deployment verification script to test the entire pipeline:
+```bash
+venv\Scripts\python verify_deployment.py
+```
 - No secrets in repository
 - Input validation and sandboxing
 

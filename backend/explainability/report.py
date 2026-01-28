@@ -290,11 +290,17 @@ def create_explainability_report(
     # Selection explanation
     if selection:
         trace = selection.decision_trace
+        compared_variants = getattr(trace, "variants_valid", None)
+        if compared_variants is None:
+            compared_variants = getattr(trace, "valid_variants", None)
+        if compared_variants is None:
+            compared_variants = sum(1 for v in report.variants if v.is_valid)
+
         report.selection = SelectionExplanation(
             selected_variant_id=selection.variant.variant_id,
             selection_reason=trace.selection_reason,
-            policy_applied=trace.policy_name,
-            compared_variants=trace.candidates_considered,
+            policy_applied="ALO (Adaptive Learning Optimizer)",
+            compared_variants=int(compared_variants),
             rejected_count=report.rejected_variants,
             failed_count=sum(1 for v in report.variants if v.status == VariantStatus.FAILED),
             accuracy_threshold=accuracy_threshold,

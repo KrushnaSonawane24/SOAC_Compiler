@@ -4,7 +4,7 @@
  * Shows job progress, logs, explainability, and artifacts.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { jobsApi, type Job, type LogEntry, type Artifact } from '../api/jobs';
 import { Navbar } from '../components/Navbar';
@@ -12,6 +12,18 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ProgressTimeline } from '../components/ProgressTimeline';
 import { LogViewer } from '../components/LogViewer';
 import { LatencyChart } from '../charts/LatencyChart';
+
+type BenchmarkSummary = {
+    baseline_latency?: number | null;
+    selected_latency?: number | null;
+    speedup?: number | null;
+    baseline_size?: number | null;
+    selected_size?: number | null;
+    size_reduction?: number | null;
+    baseline_accuracy?: number | null;
+    selected_accuracy?: number | null;
+    accuracy_drop?: number | null;
+};
 
 export const JobDetailPage: React.FC = () => {
     const { jobId } = useParams<{ jobId: string }>();
@@ -21,6 +33,8 @@ export const JobDetailPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'artifacts'>('overview');
+    const [isLive, setIsLive] = useState(false);
+    const lastKnownStateRef = useRef<Job['state'] | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!jobId) return;
@@ -32,15 +46,15 @@ export const JobDetailPage: React.FC = () => {
             ]);
             setJob(jobData);
             setLogs(logsData);
+            lastKnownStateRef.current = jobData.state;
 
-            if (jobData.state === 'completed') {
-                const artifactsData = await jobsApi.getArtifacts(jobId);
-                setArtifacts(artifactsData);
-            }
+            if ('artifacts' in jobData && Array.isArray(jobData.artifacts)) setArtifacts(jobData.artifacts);
+            setIsLive(!['completed', 'failed'].includes(jobData.state));
 
             setError(null);
         } catch {
             setError('Failed to load job details');
+            setIsLive(false);
         } finally {
             setIsLoading(false);
         }
@@ -49,15 +63,14 @@ export const JobDetailPage: React.FC = () => {
     useEffect(() => {
         fetchData();
 
-        // Auto-refresh for active jobs
         const interval = setInterval(() => {
-            if (job && !['completed', 'failed'].includes(job.state)) {
-                fetchData();
-            }
-        }, 3000);
+            const state = lastKnownStateRef.current;
+            if (state && ['completed', 'failed'].includes(state)) return;
+            fetchData();
+        }, 1000);
 
         return () => clearInterval(interval);
-    }, [fetchData, job]);
+    }, [fetchData]);
 
     const handleDownload = async (artifact: Artifact) => {
         if (!jobId) return;
@@ -103,8 +116,13 @@ export const JobDetailPage: React.FC = () => {
     }
 
     const metadata = job.metadata || {};
-    const fingerprint = typeof metadata.fingerprint === 'string' ? metadata.fingerprint : undefined;
-    const selectedVariant = typeof metadata.selected_variant_id === 'string' ? metadata.selected_variant_id : undefined;
+    const summary = (metadata as Record<string, unknown>)?.benchmark_summary as BenchmarkSummary | undefined;
+    const fingerprintValue: unknown = metadata.fingerprint;
+    const fingerprint: string | undefined = typeof fingerprintValue === 'string' ? fingerprintValue : undefined;
+    const selectedVariantValue: unknown = metadata.selected_variant_id;
+    const selectedVariant: string | undefined = typeof selectedVariantValue === 'string' ? selectedVariantValue : undefined;
+    const selectionReasonValue: unknown = metadata.selection_reason;
+    const selectionReason: string | undefined = typeof selectionReasonValue === 'string' ? selectionReasonValue : undefined;
 
     return (
         <div className="min-h-screen bg-gray-900">
@@ -120,6 +138,12 @@ export const JobDetailPage: React.FC = () => {
                         <h1 className="text-2xl font-bold text-white flex items-center gap-3">
                             <code className="text-indigo-400">{job.job_id}</code>
                             <StatusBadge status={job.state} />
+                            {isLive && (
+                                <span className="flex h-3 w-3 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                </span>
+                            )}
                         </h1>
                     </div>
                 </div>
@@ -149,6 +173,62 @@ export const JobDetailPage: React.FC = () => {
                 {/* Tab Content */}
                 {activeTab === 'overview' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        {/* Optimization Summary - NEW SECTION */}
+                        {summary ? (
+                            <div className="card lg:col-span-2 bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700">
+                                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                    <span className="text-green-400">⚡</span> Optimization Results
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* Speedup */}
+                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                        <div className="text-gray-400 text-sm mb-1">Speedup</div>
+                                        <div className="text-3xl font-bold text-green-400">
+                                            {summary.speedup ? `${summary.speedup}x` : '-'}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-2 flex justify-between">
+                                            <span>
+                                                Original: {typeof summary?.baseline_latency === 'number' ? `${summary.baseline_latency.toFixed(2)}ms` : '-'}
+                                            </span>
+                                            <span className="text-white">
+                                                Now: {typeof summary?.selected_latency === 'number' ? `${summary.selected_latency.toFixed(2)}ms` : '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Size Reduction */}
+                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                        <div className="text-gray-400 text-sm mb-1">Size Reduction</div>
+                                        <div className="text-3xl font-bold text-blue-400">
+                                            {summary.size_reduction ? `${summary.size_reduction}%` : '-'}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-2 flex justify-between">
+                                            <span>
+                                                Original: {typeof summary?.baseline_size === 'number' ? `${(summary.baseline_size / 1024 / 1024).toFixed(1)}MB` : '-'}
+                                            </span>
+                                            <span className="text-white">
+                                                Now: {typeof summary?.selected_size === 'number' ? `${(summary.selected_size / 1024 / 1024).toFixed(1)}MB` : '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Quality/Accuracy */}
+                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                                        <div className="text-gray-400 text-sm mb-1">Quality Check</div>
+                                        <div className={`text-3xl font-bold ${(summary.accuracy_drop ?? 0) > 0.02 ? 'text-red-400' : 'text-indigo-400'}`}>
+                                            {summary.accuracy_drop !== undefined && summary.accuracy_drop !== null 
+                                                ? (summary.accuracy_drop <= 0.001 ? 'Lossless' : `-${(summary.accuracy_drop * 100).toFixed(2)}%`) 
+                                                : 'Verified'}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-2">
+                                            {(summary.accuracy_drop ?? 0) > 0.02 ? 'Exceeds threshold' : 'Within 2% threshold'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
                         {/* Job Info */}
                         <div className="card">
                             <h3 className="text-lg font-semibold text-white mb-4">Job Information</h3>
@@ -159,7 +239,7 @@ export const JobDetailPage: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between">
                                     <dt className="text-gray-400">Model</dt>
-                                    <dd className="text-white">{job.input_filename || 'model.onnx'}</dd>
+                                    <dd className="text-white">{job.original_filename || 'model.onnx'}</dd>
                                 </div>
                                 {selectedVariant && (
                                     <div className="flex justify-between">
@@ -184,28 +264,28 @@ export const JobDetailPage: React.FC = () => {
                         ) : null}
 
                         {/* Stage Timing */}
-                        {job.stages && job.stages.length > 0 && (
+                        {job.stages?.length ? (
                             <div className="card lg:col-span-2">
                                 <h3 className="text-lg font-semibold text-white mb-4">Stage Timing</h3>
                                 <LatencyChart
                                     data={job.stages.map((s) => ({
-                                        name: s.stage.replace('ing', ''),
-                                        latency: s.duration_ms,
-                                        selected: s.stage === 'completed',
+                                        name: ((s && s.name) || 'unknown').replace('ing', ''),
+                                        latency: typeof s.duration_ms === 'number' ? s.duration_ms : 0,
+                                        selected: s.name === 'completed',
                                     }))}
                                 />
                             </div>
-                        )}
+                        ) : null}
 
                         {/* Explainability (if available) */}
-                        {metadata.selection_reason && (
+                        {selectionReason ? (
                             <div className="card lg:col-span-2">
                                 <h3 className="text-lg font-semibold text-white mb-4">Selection Rationale</h3>
                                 <div className="bg-indigo-900/30 border border-indigo-700 rounded-lg p-4">
-                                    <p className="text-indigo-300">{metadata.selection_reason as string}</p>
+                                    <p className="text-indigo-300">{selectionReason}</p>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 )}
 
@@ -238,7 +318,7 @@ export const JobDetailPage: React.FC = () => {
                                         <div>
                                             <div className="text-white font-medium">{artifact.name}</div>
                                             <div className="text-gray-400 text-sm">
-                                                {artifact.type} • {(artifact.size_bytes / 1024).toFixed(1)} KB
+                                                {artifact.platform} • {artifact.format} • {(artifact.size_bytes / 1024).toFixed(1)} KB • {artifact.status}
                                             </div>
                                         </div>
                                         <button

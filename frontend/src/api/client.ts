@@ -6,11 +6,16 @@
 
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-// Token storage (in-memory for security)
-let accessToken: string | null = null;
+// Token storage (localStorage + in-memory)
+let accessToken: string | null = localStorage.getItem('soac_token');
 
 export const setAccessToken = (token: string | null) => {
     accessToken = token;
+    if (token) {
+        localStorage.setItem('soac_token', token);
+    } else {
+        localStorage.removeItem('soac_token');
+    }
 };
 
 export const getAccessToken = () => accessToken;
@@ -26,7 +31,7 @@ const api = axios.create({
 // Request interceptor - add JWT
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        if (accessToken && config.headers) {
+        if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;

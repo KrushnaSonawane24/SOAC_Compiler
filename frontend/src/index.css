@@ -7,26 +7,59 @@
   --soac-success: #10b981;
   --soac-warning: #f59e0b;
   --soac-error: #ef4444;
-  --soac-dark: #1e1e2e;
-  --soac-darker: #11111b;
+  --soac-dark: #0f172a; /* Slate 900 - smoother than gray-900 */
+  --soac-darker: #020617; /* Slate 950 */
+  --soac-card: #1e293b; /* Slate 800 */
+  --soac-border: #334155; /* Slate 700 */
 }
 
 body {
-  @apply bg-gray-900 text-gray-100 antialiased;
+  @apply bg-slate-900 text-slate-100 antialiased;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Smoother, deeper gradient */
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.08) 0%, transparent 25%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 .btn-primary {
-  @apply bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  @apply bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-95 border border-indigo-500/50;
 }
 
 .btn-secondary {
-  @apply bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  @apply bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 border border-slate-700 hover:border-slate-600 active:scale-95;
 }
 
 .card {
-  @apply bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700;
+  @apply bg-slate-800/50 backdrop-blur-md rounded-xl p-6 shadow-xl border border-slate-700/50 transition-all duration-300 hover:border-slate-600/50 hover:bg-slate-800/70;
 }
 
 .input {
-  @apply bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent;
+  @apply bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-200;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full border-2 border-slate-950 hover:bg-slate-600 transition-colors;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
 }

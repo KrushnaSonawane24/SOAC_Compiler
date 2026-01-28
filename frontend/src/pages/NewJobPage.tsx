@@ -12,233 +12,228 @@ import { Navbar } from '../components/Navbar';
 type Policy = 'balanced' | 'accuracy_first' | 'latency_first' | 'mobile_first';
 
 export const NewJobPage: React.FC = () => {
+    const navigate = useNavigate();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [file, setFile] = useState<File | null>(null);
     const [policy, setPolicy] = useState<Policy>('balanced');
-    const [reproducible, setReproducible] = useState(false);
-    const [showSimulation, setShowSimulation] = useState(false);
-    const [simAccuracy, setSimAccuracy] = useState<number | ''>('');
-    const [simLatency, setSimLatency] = useState<number | ''>('');
-    const [simMemory, setSimMemory] = useState<number | ''>('');
+    const [targets, setTargets] = useState<string[]>(['android', 'gpu']);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const navigate = useNavigate();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setFile(selectedFile);
+        if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+            setError(null);
         }
+    };
+
+    const toggleTarget = (target: string) => {
+        setTargets(prev => 
+            prev.includes(target) 
+                ? prev.filter(t => t !== target)
+                : [...prev, target]
+        );
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
-
         if (!file) {
             setError('Please select a model file');
             return;
         }
 
+        if (targets.length === 0) {
+            setError('Please select at least one deployment target');
+            return;
+        }
+
         setIsSubmitting(true);
+        setError(null);
 
         try {
             const config: CreateJobRequest = {
-                compilation_policy: policy,
-                build_mode: reproducible ? 'reproducible' : 'normal',
+                policy,
+                targets,
+                compilation_policy: policy // For backward compatibility if needed
             };
-
-            if (simAccuracy !== '') {
-                config.simulate_accuracy_drop = Number(simAccuracy) / 100;
-            }
-            if (simLatency !== '') {
-                config.simulate_latency_spike = Number(simLatency);
-            }
-            if (simMemory !== '') {
-                config.simulate_memory_exceed = Number(simMemory);
-            }
 
             const job = await jobsApi.create(file, config);
             navigate(`/jobs/${job.job_id}`);
-        } catch {
-            setError('Failed to create job. Please try again.');
-        } finally {
+        } catch (err: unknown) {
+            type ApiErrorBody = { detail?: string };
+            type AxiosLikeError = { response?: { data?: ApiErrorBody } };
+            const maybeAxiosError = err as AxiosLikeError;
+            const detail = maybeAxiosError.response?.data?.detail;
+            setError(typeof detail === 'string' ? detail : 'Failed to create job');
             setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen bg-gray-900 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white">
             <Navbar />
 
-            <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <h1 className="text-3xl font-bold text-white mb-8">New Compilation Job</h1>
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="text-center mb-12">
+                    <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl mb-4">
+                        Optimize Your Model
+                    </h1>
+                    <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                        Upload your ONNX model and let SOAC-v2 generate production-ready artifacts for Edge and Cloud.
+                    </p>
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {error && (
-                        <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* File Upload */}
-                    <div className="card">
-                        <h2 className="text-lg font-semibold text-white mb-4">Model File</h2>
-
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${file
-                                ? 'border-green-500 bg-green-900/20'
-                                : 'border-gray-600 hover:border-indigo-500'
-                                }`}
-                        >
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".onnx,.pt,.pth,.h5,.pb,.tflite"
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-
-                            {file ? (
-                                <div>
-                                    <div className="text-green-400 mb-2">✓ File selected</div>
-                                    <div className="text-white font-medium">{file.name}</div>
-                                    <div className="text-gray-400 text-sm">
-                                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 overflow-hidden">
+                    <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-10">
+                        
+                        {/* 1. Model Upload */}
+                        <section>
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">1</span>
+                                Upload Model
+                            </h2>
+                            <div 
+                                className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 ease-in-out cursor-pointer group
+                                    ${file ? 'border-indigo-500 bg-indigo-900/10' : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700/30'}`}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept=".onnx,.h5,.keras,.pb,.tflite"
+                                />
+                                
+                                {file ? (
+                                    <div className="space-y-2">
+                                        <div className="mx-auto w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                        <p className="text-lg font-medium text-white">{file.name}</p>
+                                        <p className="text-sm text-indigo-300">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        <p className="text-xs text-gray-400 mt-2">Click to change file</p>
                                     </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="text-gray-400 mb-2">
-                                        Drag and drop or click to upload
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="mx-auto w-12 h-12 bg-gray-700 group-hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                        </div>
+                                        <p className="text-lg font-medium text-gray-300">Click to upload or drag and drop</p>
+                                        <p className="text-sm text-gray-500">ONNX, TensorFlow, Keras (Max 500MB)</p>
                                     </div>
-                                    <div className="text-gray-500 text-sm">
-                                        Supports: .onnx, .pt, .pth, .h5, .pb, .tflite
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                                )}
+                            </div>
+                        </section>
 
-                    {/* Compilation Policy */}
-                    <div className="card">
-                        <h2 className="text-lg font-semibold text-white mb-4">Compilation Policy</h2>
+                        <div className="border-t border-gray-700"></div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            {[
-                                { value: 'balanced', label: 'Balanced', desc: 'Best overall' },
-                                { value: 'accuracy_first', label: 'Accuracy First', desc: 'Max accuracy' },
-                                { value: 'latency_first', label: 'Latency First', desc: 'Fastest inference' },
-                                { value: 'mobile_first', label: 'Mobile First', desc: 'Smallest size' },
-                            ].map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setPolicy(option.value as Policy)}
-                                    className={`p-4 rounded-lg border-2 text-left transition-colors ${policy === option.value
-                                        ? 'border-indigo-500 bg-indigo-900/30'
-                                        : 'border-gray-600 hover:border-gray-500'
-                                        }`}
+                        {/* 2. Deployment Targets */}
+                        <section>
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">2</span>
+                                Deployment Targets
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div 
+                                    className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
+                                        ${targets.includes('android') ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                    onClick={() => toggleTarget('android')}
                                 >
-                                    <div className="text-white font-medium">{option.label}</div>
-                                    <div className="text-gray-400 text-sm">{option.desc}</div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
+                                        ${targets.includes('android') ? 'bg-indigo-600 border-indigo-600' : 'border-gray-500'}`}>
+                                        {targets.includes('android') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-medium text-white">Android (TFLite)</h3>
+                                        <p className="text-sm text-gray-400 mt-1">
+                                            Optimized for mobile edge devices. INT8 quantization with fallback.
+                                        </p>
+                                    </div>
+                                </div>
 
-                    {/* Options */}
-                    <div className="card">
-                        <h2 className="text-lg font-semibold text-white mb-4">Options</h2>
-
-                        <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={reproducible}
-                                onChange={(e) => setReproducible(e.target.checked)}
-                                className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-indigo-500 focus:ring-indigo-500"
-                            />
-                            <div>
-                                <div className="text-white">Reproducible Build</div>
-                                <div className="text-gray-400 text-sm">
-                                    Deterministic compilation with fixed seeds
+                                <div 
+                                    className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
+                                        ${targets.includes('gpu') ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                    onClick={() => toggleTarget('gpu')}
+                                >
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
+                                        ${targets.includes('gpu') ? 'bg-indigo-600 border-indigo-600' : 'border-gray-500'}`}>
+                                        {targets.includes('gpu') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-medium text-white">NVIDIA GPU (TensorRT)</h3>
+                                        <p className="text-sm text-gray-400 mt-1">
+                                            High-performance inference for Cloud/PC. FP16/INT8 engines.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </label>
-                    </div>
+                        </section>
 
-                    {/* Simulation (Demo Only) */}
-                    <div className="card">
-                        <button
-                            type="button"
-                            onClick={() => setShowSimulation(!showSimulation)}
-                            className="flex items-center justify-between w-full text-left"
-                        >
-                            <div>
-                                <div className="text-lg font-semibold text-white">Failure Simulation</div>
-                                <div className="text-gray-400 text-sm">Demo only - inject test failures</div>
+                        <div className="border-t border-gray-700"></div>
+
+                        {/* 3. Optimization Policy */}
+                        <section>
+                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">3</span>
+                                Optimization Policy
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {[
+                                    { id: 'balanced', label: 'Balanced', desc: 'Best trade-off between speed and accuracy.' },
+                                    { id: 'accuracy_first', label: 'Accuracy First', desc: 'Minimal quantization, max precision (FP16/FP32).' },
+                                    { id: 'latency_first', label: 'Latency First', desc: 'Aggressive optimization (INT8) for max speed.' },
+                                ].map((option) => (
+                                    <div 
+                                        key={option.id}
+                                        className={`relative rounded-xl p-5 border-2 cursor-pointer transition-all duration-200
+                                            ${policy === option.id ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                        onClick={() => setPolicy(option.id as Policy)}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-lg font-medium text-white">{option.label}</h3>
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center
+                                                ${policy === option.id ? 'border-indigo-500' : 'border-gray-500'}`}>
+                                                {policy === option.id && <div className="w-3 h-3 rounded-full bg-indigo-500" />}
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-gray-400">{option.desc}</p>
+                                    </div>
+                                ))}
                             </div>
-                            <span className="text-gray-400">{showSimulation ? '▼' : '▶'}</span>
-                        </button>
+                        </section>
 
-                        {showSimulation && (
-                            <div className="mt-4 space-y-4 pt-4 border-t border-gray-700">
-                                <div>
-                                    <label className="block text-sm text-gray-300 mb-1">
-                                        Accuracy Drop (%)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        step="0.1"
-                                        value={simAccuracy}
-                                        onChange={(e) => setSimAccuracy(e.target.value ? Number(e.target.value) : '')}
-                                        className="input w-full"
-                                        placeholder="e.g., 5 for 5% drop"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-300 mb-1">
-                                        Latency Multiplier
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        step="0.1"
-                                        value={simLatency}
-                                        onChange={(e) => setSimLatency(e.target.value ? Number(e.target.value) : '')}
-                                        className="input w-full"
-                                        placeholder="e.g., 2 for 2x latency"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-300 mb-1">
-                                        Memory Override (MB)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={simMemory}
-                                        onChange={(e) => setSimMemory(e.target.value ? Number(e.target.value) : '')}
-                                        className="input w-full"
-                                        placeholder="e.g., 10000 for 10GB"
-                                    />
-                                </div>
+                        {/* Error Message */}
+                        {error && (
+                            <div className="bg-red-900/50 border border-red-500/50 rounded-lg p-4 text-red-200 flex items-start">
+                                <svg className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span>{error}</span>
                             </div>
                         )}
-                    </div>
 
-                    {/* Submit */}
-                    <button
-                        type="submit"
-                        disabled={isSubmitting || !file}
-                        className="btn-primary w-full py-3 text-lg disabled:opacity-50"
-                    >
-                        {isSubmitting ? 'Creating Job...' : 'Start Compilation'}
-                    </button>
-                </form>
+                        {/* Submit Button */}
+                        <div className="pt-4">
+                            <button
+                                type="submit"
+                                disabled={isSubmitting || !file}
+                                className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-sm text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-[1.01]
+                                    ${(isSubmitting || !file) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Start Optimization Job'
+                                )}
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
             </main>
         </div>
     );

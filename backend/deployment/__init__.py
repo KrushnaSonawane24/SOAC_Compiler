@@ -15,7 +15,7 @@ TARGETS:
 """
 
 # Main API
-from .packaging import (
+from .pipeline_packaging import (
     generate_deployment_artifacts,
     get_available_targets,
 )

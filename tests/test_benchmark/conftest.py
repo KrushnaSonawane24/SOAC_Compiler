@@ -39,7 +39,7 @@ def simple_onnx_model(temp_dir) -> Path:
     
     # Create simple model: input -> Relu -> output
     X = helper.make_tensor_value_info('input', TensorProto.FLOAT, [1, 3, 224, 224])
-    Y = helper.make_tensor_value_info('output', TensorProto.FLOAT, [1, 1000])
+    Y = helper.make_tensor_value_info('output', TensorProto.FLOAT, [1, 150528])
     
     # Create nodes
     nodes = [
@@ -48,7 +48,8 @@ def simple_onnx_model(temp_dir) -> Path:
     ]
     
     graph = helper.make_graph(nodes, 'test', [X], [Y])
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid('', 13)])
+    model.ir_version = 7
     
     path = temp_dir / "test_model.onnx"
     onnx.save(model, str(path))

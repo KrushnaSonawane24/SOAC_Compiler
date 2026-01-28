@@ -80,6 +80,8 @@ SUPPORTED_EXTENSIONS: Dict[str, ModelFormat] = {
     ".pkl": ModelFormat.PICKLE,
     ".joblib": ModelFormat.JOBLIB,
     ".tflite": ModelFormat.TFLITE,
+    ".trt": ModelFormat.TENSORRT_ENGINE,
+    ".engine": ModelFormat.TENSORRT_ENGINE,
     ".mlmodel": ModelFormat.COREML,
 }
 

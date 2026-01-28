@@ -54,6 +54,7 @@ class JobResult:
     input_path: str
     selected_variant: Optional[str] = None
     deployment_bundle: Optional[str] = None
+    artifacts: Dict[str, str] = field(default_factory=dict)
     stage_results: List[StageResult] = field(default_factory=list)
     error: Optional[Dict[str, Any]] = None
     total_duration_ms: float = 0.0
@@ -68,6 +69,7 @@ class JobResult:
             "input_path": self.input_path,
             "selected_variant": self.selected_variant,
             "deployment_bundle": self.deployment_bundle,
+            "artifacts": self.artifacts,
             "stage_results": [s.to_dict() for s in self.stage_results],
             "error": self.error,
             "total_duration_ms": self.total_duration_ms,
@@ -94,6 +96,7 @@ def create_success_result(
     total_duration_ms: float,
     logs: List[str],
     metadata: Optional[Dict[str, Any]] = None,
+    artifacts: Optional[Dict[str, str]] = None,
 ) -> JobResult:
     """Create successful job result."""
     return JobResult(
@@ -107,6 +110,7 @@ def create_success_result(
         total_duration_ms=total_duration_ms,
         logs=logs,
         metadata=metadata or {},
+        artifacts=artifacts or {},
     )
 
 

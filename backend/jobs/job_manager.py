@@ -14,7 +14,7 @@ import uuid
 
 from .models import Job, JobState, StageInfo, ArtifactInfo, create_job
 from .job_store import JobStore, get_job_store
-from .exceptions import JobNotFoundError, ArtifactNotFoundError, UnauthorizedAccessError
+from .exceptions import JobNotFoundError, ArtifactNotFoundError, UnauthorizedAccessError, InvalidStateTransition
 
 from backend.orchestrator import run_soac_job, JobConfig
 
@@ -41,6 +41,7 @@ class JobManager:
         original_filename: str,
         file_size_bytes: int,
         input_path: Path,
+        config: Optional[dict] = None,
     ) -> Job:
         """
         Create a new job and start execution.
@@ -50,6 +51,7 @@ class JobManager:
             original_filename: Original uploaded filename.
             file_size_bytes: Size of uploaded file.
             input_path: Path to uploaded model.
+            config: Job configuration (targets, policy).
         
         Returns:
             Created job.
@@ -59,6 +61,7 @@ class JobManager:
             original_filename=original_filename,
             file_size_bytes=file_size_bytes,
             input_path=input_path,
+            metadata={"user_config": config or {}},
         )
         
         self.store.add(job)
@@ -86,18 +89,43 @@ class JobManager:
             job.work_dir = work_dir
             
             # Configure and run
+            user_config = job.metadata.get("user_config", {})
+            
             config = JobConfig(
                 accuracy_threshold=0.02,
                 warmup_runs=3,
                 measured_runs=10,
                 cleanup_on_complete=False,
+                deployment_targets=user_config.get("targets", ["android", "gpu"]),
+                compilation_policy=user_config.get("policy", "balanced"),
             )
+            
+            def log_callback(job_id, stage, message):
+                """Real-time log callback."""
+                self.store.add_log(job_id, stage, message)
+                
+                # Attempt to update job state based on stage
+                try:
+                    # Map pipeline stages to job states if needed
+                    # "pending" -> "created" is not really a transition we expect during run
+                    if stage == "pending":
+                        return
+
+                    new_state = JobState(stage)
+                    current_job = self.store.get(job_id)
+                    
+                    if current_job.state != new_state:
+                        self.store.update_state(job_id, new_state)
+                except (ValueError, Exception):
+                    # Ignore invalid states or transitions
+                    pass
             
             result = run_soac_job(
                 uploaded_model_path=job.input_path,
                 config=config,
                 job_id=job_id,
                 work_dir=work_dir,
+                log_callback=log_callback,
             )
             
             # Update job from result
@@ -108,12 +136,15 @@ class JobManager:
                 
         except Exception as e:
             logger.exception(f"Job {job_id} failed with exception")
-            self.store.update_state(
-                job_id,
-                JobState.FAILED,
-                error_code="INTERNAL_ERROR",
-                error_message=str(e),
-            )
+            try:
+                self.store.update_state(
+                    job_id,
+                    JobState.FAILED,
+                    error_code="INTERNAL_ERROR",
+                    error_message=str(e),
+                )
+            except InvalidStateTransition:
+                pass
     
     def _handle_success(self, job_id: str, result) -> None:
         """Handle successful job completion."""
@@ -125,6 +156,7 @@ class JobManager:
             job_id,
             selected_variant=result.selected_variant or "unknown",
             selection_reason=result.metadata.get("selection_reason", ""),
+            metadata=result.metadata,
         )
         
         # Add stage info
@@ -137,42 +169,102 @@ class JobManager:
             ))
         
         # Add artifacts
-        deployment = result.metadata.get("deployment_summary", {})
-        if deployment.get("successful", 0) > 0:
-            artifact_id = f"art_{uuid.uuid4().hex[:8]}"
-            self.store.set_artifact(job_id, artifact_id, ArtifactInfo(
-                artifact_id=artifact_id,
-                name="ONNX Runtime Package",
-                platform="cpu",
-                format="onnx",
-                size_bytes=0,
-                status="available",
-            ))
+        # 1. Deployment Bundle
+        if result.deployment_bundle:
+            path = Path(result.deployment_bundle)
+            if path.exists():
+                artifact_id = f"art_{uuid.uuid4().hex[:8]}"
+                fmt = "zip" if path.is_dir() else path.suffix.lstrip(".")
+                
+                self.store.set_artifact(
+                    job_id, 
+                    artifact_id, 
+                    ArtifactInfo(
+                        artifact_id=artifact_id,
+                        name="Deployment Bundle",
+                        platform="all",
+                        format=fmt,
+                        size_bytes=0, # calculated on download if dir
+                        status="available",
+                    ),
+                    path=str(path)
+                )
+
+        # 2. General Artifacts (from pipeline context)
+        if hasattr(result, 'artifacts') and result.artifacts:
+            for name, path_str in result.artifacts.items():
+                # Skip deployment bundle as it's already handled
+                if name == "deployment":
+                    continue
+                    
+                path = Path(path_str)
+                if path.exists():
+                    # Check if already added (avoid duplicates)
+                    # This is a simple check; ideally check by path equality
+                    existing = [a for a in self.store.get(job_id).artifact_metadata if a.name == name]
+                    if existing:
+                        continue
+                        
+                    artifact_id = f"art_{uuid.uuid4().hex[:8]}"
+                    fmt = "zip" if path.is_dir() else path.suffix.lstrip(".")
+                    
+                    self.store.set_artifact(
+                        job_id,
+                        artifact_id,
+                        ArtifactInfo(
+                            artifact_id=artifact_id,
+                            name=name,
+                            platform="unknown",
+                            format=fmt,
+                            size_bytes=path.stat().st_size if path.is_file() else 0,
+                            status="available",
+                        ),
+                        path=str(path)
+                    )
+
+        # 3. Stage Artifacts (legacy fallback)
+        for sr in result.stage_results:
+            if sr.artifacts:
+                for name, path_str in sr.artifacts.items():
+                    path = Path(path_str)
+                    if path.exists():
+                        artifact_id = f"art_{uuid.uuid4().hex[:8]}"
+                        self.store.set_artifact(
+                            job_id,
+                            artifact_id,
+                            ArtifactInfo(
+                                artifact_id=artifact_id,
+                                name=name,
+                                platform="unknown",
+                                format=path.suffix.lstrip("."),
+                                size_bytes=path.stat().st_size if path.is_file() else 0,
+                                status="available",
+                            ),
+                            path=str(path)
+                        )
         
-        # Add logs
-        for log in result.logs:
-            # Parse log format: [timestamp] [stage] message
-            parts = log.split("] ")
-            if len(parts) >= 3:
-                stage = parts[1].strip("[")
-                message = "] ".join(parts[2:])
-                self.store.add_log(job_id, stage, message)
-            else:
-                self.store.add_log(job_id, "info", log)
+        # Logs are handled in real-time via log_callback, so we don't need to add them here.
+        # This prevents duplicate logs.
         
         logger.info(f"Job {job_id} completed successfully")
     
     def _handle_failure(self, job_id: str, result) -> None:
         """Handle job failure."""
         error = result.error or {}
-        self.store.update_state(
-            job_id,
-            JobState.FAILED,
-            error_code=error.get("error_code", "UNKNOWN"),
-            error_message=error.get("message", "Unknown error"),
-        )
+        # PipelineError.to_dict() returns "error" for the message, not "message"
+        error_msg = error.get("error") or error.get("message") or "Unknown error"
         
-        logger.error(f"Job {job_id} failed: {error.get('message')}")
+        try:
+            self.store.update_state(
+                job_id,
+                JobState.FAILED,
+                error_code=error.get("error_code", "UNKNOWN"),
+                error_message=error_msg,
+            )
+        except InvalidStateTransition:
+            pass
+        
+        logger.error(f"Job {job_id} failed: {error_msg}")
     
     def get_job(self, job_id: str, user_id: str) -> Job:
         """

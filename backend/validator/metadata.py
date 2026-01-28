@@ -25,6 +25,7 @@ class ModelFormat(str, Enum):
     PYTORCH = "pytorch"
     KERAS_H5 = "keras_h5"
     TFLITE = "tflite"
+    TENSORRT_ENGINE = "tensorrt_engine"
     COREML = "coreml"
     PICKLE = "pickle"
     JOBLIB = "joblib"

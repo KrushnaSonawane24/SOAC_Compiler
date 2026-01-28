@@ -97,7 +97,7 @@ export const DashboardPage: React.FC = () => {
                                             <code className="text-indigo-400 text-sm">{job.job_id}</code>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                            {job.input_filename || 'model.onnx'}
+                                            {job.original_filename || 'model.onnx'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <StatusBadge status={job.state} />

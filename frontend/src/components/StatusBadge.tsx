@@ -10,7 +10,7 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<JobState, { color: string; label: string }> = {
-    pending: { color: 'bg-gray-500', label: 'Pending' },
+    created: { color: 'bg-gray-500', label: 'Created' },
     validating: { color: 'bg-blue-500', label: 'Validating' },
     canonicalizing: { color: 'bg-blue-500', label: 'Canonicalizing' },
     optimizing: { color: 'bg-purple-500', label: 'Optimizing' },
@@ -22,7 +22,7 @@ const statusConfig: Record<JobState, { color: string; label: string }> = {
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-    const config = statusConfig[status] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.created;
 
     return (
         <span

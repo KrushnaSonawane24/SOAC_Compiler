@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { useAuth } from '../auth/AuthContext';
 
 export const RegisterPage: React.FC = () => {
@@ -34,8 +35,31 @@ export const RegisterPage: React.FC = () => {
         try {
             await register({ email, password });
             navigate('/');
-        } catch {
-            setError('Registration failed. Email may already be in use.');
+        } catch (err: unknown) {
+            if (err instanceof AxiosError && err.response) {
+                const data = err.response.data;
+                // Handle 409 Conflict (User exists)
+                if (err.response.status === 409 && data.detail?.error) {
+                    setError(data.detail.error);
+                    return;
+                }
+                // Handle 422 Validation Error
+                if (err.response.status === 422) {
+                    if (Array.isArray(data.detail)) {
+                        const firstError = data.detail[0];
+                        setError(`Validation Error: ${firstError.msg} (${firstError.loc.join('.')})`);
+                    } else {
+                        setError('Validation failed. Please check your input.');
+                    }
+                    return;
+                }
+                // Handle other API errors
+                if (data.detail) {
+                    setError(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
+                    return;
+                }
+            }
+            setError('Registration failed. Please try again.');
         } finally {
             setIsLoading(false);
         }

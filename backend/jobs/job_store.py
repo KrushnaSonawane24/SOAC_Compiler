@@ -5,7 +5,7 @@ SOAC Job Store
 In-memory job storage (production: replace with database).
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from threading import Lock
 from datetime import datetime, timezone
 
@@ -58,6 +58,14 @@ class JobStore:
                 raise JobNotFoundError(job_id)
             
             job = self._jobs[job_id]
+
+            if job.state == new_state:
+                job.updated_at = datetime.now(timezone.utc).isoformat()
+                if new_state == JobState.FAILED:
+                    job.error_code = error_code
+                    job.error_message = error_message
+                    job.failed_stage = job.current_stage
+                return job
             
             if not can_transition(job.state, new_state):
                 raise InvalidStateTransition(job_id, job.state.value, new_state.value)
@@ -95,18 +103,20 @@ class JobStore:
                 raise JobNotFoundError(job_id)
             self._jobs[job_id].stages.append(stage_info)
     
-    def set_artifact(self, job_id: str, artifact_id: str, info: ArtifactInfo) -> None:
+    def set_artifact(self, job_id: str, artifact_id: str, info: ArtifactInfo, path: str) -> None:
         """Register artifact."""
         with self._lock:
             if job_id not in self._jobs:
                 raise JobNotFoundError(job_id)
             self._jobs[job_id].artifact_metadata.append(info)
+            self._jobs[job_id].artifacts[artifact_id] = path
     
     def set_result(
         self,
         job_id: str,
         selected_variant: str,
         selection_reason: str,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Set job result."""
         with self._lock:
@@ -114,6 +124,8 @@ class JobStore:
                 raise JobNotFoundError(job_id)
             self._jobs[job_id].selected_variant = selected_variant
             self._jobs[job_id].selection_reason = selection_reason
+            if metadata:
+                self._jobs[job_id].metadata.update(metadata)
     
     def list_jobs(
         self,

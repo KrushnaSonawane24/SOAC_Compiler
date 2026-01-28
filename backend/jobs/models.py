@@ -181,6 +181,7 @@ def create_job(
     original_filename: str,
     file_size_bytes: int,
     input_path: Path,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Job:
     """Create a new job."""
     now = datetime.now(timezone.utc).isoformat()
@@ -196,4 +197,5 @@ def create_job(
         file_size_bytes=file_size_bytes,
         input_path=input_path,
         progress=0,
+        metadata=metadata or {},
     )

@@ -6,6 +6,7 @@ import React from 'react';
 import { type JobState } from '../api/jobs';
 
 const STAGES: JobState[] = [
+    'created',
     'validating',
     'canonicalizing',
     'optimizing',

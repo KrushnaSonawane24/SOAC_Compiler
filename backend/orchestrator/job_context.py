@@ -99,6 +99,7 @@ class JobContext:
     artifacts: Dict[str, Path] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
     logs: List[str] = field(default_factory=list)
+    log_callback: Optional[Any] = None
     
     @property
     def canonical_dir(self) -> Path:
@@ -127,6 +128,11 @@ class JobContext:
         entry = f"[{timestamp}] [{self.current_stage.value}] {message}"
         self.logs.append(entry)
         logger.info(f"[{self.job_id}] {message}")
+        if self.log_callback:
+            try:
+                self.log_callback(self.job_id, self.current_stage.value, message)
+            except Exception:
+                pass  # Ignore callback errors to avoid crashing pipeline
     
     def set_stage(self, stage: PipelineStage):
         """Update current stage."""
@@ -165,6 +171,7 @@ def create_job_context(
     config: Optional[JobConfig] = None,
     job_id: Optional[str] = None,
     work_dir: Optional[Path] = None,
+    log_callback: Optional[Any] = None,
 ) -> JobContext:
     """
     Create a new job context.
@@ -174,6 +181,7 @@ def create_job_context(
         config: Job configuration.
         job_id: Optional job ID (generated if not provided).
         work_dir: Optional work directory (temp if not provided).
+        log_callback: Optional callback for real-time logging.
     
     Returns:
         Initialized JobContext.
@@ -196,4 +204,5 @@ def create_job_context(
         config=config,
         work_dir=work_dir,
         created_at=datetime.now(timezone.utc).isoformat(),
+        log_callback=log_callback,
     )

@@ -143,8 +143,24 @@ def create_sample_input(
                 else:
                     shape.append(224)  # Default spatial
         
+        # Get input type
+        dtype = np.float32
+        if hasattr(input_info, 'type'):
+            if 'float16' in input_info.type:
+                dtype = np.float16
+            elif 'double' in input_info.type:
+                dtype = np.float64
+            elif 'int64' in input_info.type:
+                dtype = np.int64
+            elif 'int32' in input_info.type:
+                dtype = np.int32
+        
         # Create random input
-        return np.random.randn(*shape).astype(np.float32)
+        data = np.random.randn(*shape)
+        if dtype in [np.int32, np.int64]:
+             data = np.random.randint(0, 10, size=shape)
+             
+        return data.astype(dtype)
         
     except Exception as e:
         raise LatencyMeasurementError(f"Failed to create input: {e}", e)

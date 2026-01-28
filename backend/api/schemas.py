@@ -94,6 +94,7 @@ class JobResponse(BaseModel):
     stages: List[StageResponse] = []
     artifacts: List[ArtifactResponse] = []
     error: Optional[ErrorDetail] = None
+    metadata: Dict[str, Any] = {}
 
 
 class JobCreatedResponse(BaseModel):

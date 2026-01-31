@@ -30,25 +30,26 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState
                 const isCompleted = currentIndex > index;
                 const isCurrent = currentState === stage;
 
-                let bgColor = 'bg-gray-600';
-                let textColor = 'text-gray-400';
+                let dotColor = 'var(--soac-card-border)';
+                let labelColor = 'var(--soac-muted)';
 
                 if (isFailed && isCurrent) {
-                    bgColor = 'bg-red-500';
-                    textColor = 'text-red-400';
+                    dotColor = 'var(--soac-stage-failed)';
+                    labelColor = 'var(--soac-stage-failed)';
                 } else if (isCompleted) {
-                    bgColor = 'bg-green-500';
-                    textColor = 'text-green-400';
+                    dotColor = 'var(--soac-stage-completed)';
+                    labelColor = 'var(--soac-stage-completed)';
                 } else if (isCurrent) {
-                    bgColor = 'bg-indigo-500 animate-pulse';
-                    textColor = 'text-indigo-400';
+                    dotColor = `var(--soac-stage-${stage})`;
+                    labelColor = `var(--soac-stage-${stage})`;
                 }
 
                 return (
                     <React.Fragment key={stage}>
                         <div className="flex flex-col items-center">
                             <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center ${bgColor}`}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center ${isCurrent && !isFailed ? 'animate-pulse' : ''}`}
+                                style={{ backgroundColor: dotColor }}
                             >
                                 {isCompleted ? (
                                     <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -58,14 +59,16 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState
                                     <span className="text-white text-xs">{index + 1}</span>
                                 )}
                             </div>
-                            <span className={`mt-2 text-xs capitalize ${textColor}`}>
+                            <span className="mt-2 text-xs capitalize" style={{ color: labelColor }}>
                                 {stage.replace('ing', '')}
                             </span>
                         </div>
                         {index < STAGES.length - 1 && (
                             <div
-                                className={`flex-1 h-1 mx-2 ${isCompleted ? 'bg-green-500' : 'bg-gray-600'
-                                    }`}
+                                className="flex-1 h-1 mx-2"
+                                style={{
+                                    backgroundColor: isCompleted ? 'var(--soac-stage-completed)' : 'var(--soac-card-border)',
+                                }}
                             />
                         )}
                     </React.Fragment>

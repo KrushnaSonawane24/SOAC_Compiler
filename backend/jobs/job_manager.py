@@ -92,9 +92,12 @@ class JobManager:
             user_config = job.metadata.get("user_config", {})
             
             config = JobConfig(
-                accuracy_threshold=0.02,
-                warmup_runs=3,
-                measured_runs=10,
+                accuracy_threshold=float(user_config.get("accuracy_threshold", 0.01)),
+                max_model_size_mb=int(user_config.get("max_model_size_mb", 200)),
+                max_stage_attempts=int(user_config.get("max_stage_attempts", 2)),
+                retry_backoff_ms=int(user_config.get("retry_backoff_ms", 600)),
+                warmup_runs=int(user_config.get("warmup_runs", 3)),
+                measured_runs=int(user_config.get("measured_runs", 10)),
                 cleanup_on_complete=False,
                 deployment_targets=user_config.get("targets", ["android", "gpu"]),
                 compilation_policy=user_config.get("policy", "balanced"),

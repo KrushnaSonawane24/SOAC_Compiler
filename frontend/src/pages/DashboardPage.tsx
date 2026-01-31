@@ -4,18 +4,22 @@
  * Shows user's jobs with auto-refresh.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { jobsApi, type Job } from '../api/jobs';
 import { StatusBadge } from '../components/StatusBadge';
 import { Navbar } from '../components/Navbar';
+import { useMascot } from '../mascot/MascotContext';
 
 export const DashboardPage: React.FC = () => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { setState } = useMascot();
+    const firstLoadRef = useRef(true);
 
     const fetchJobs = useCallback(async () => {
+        const start = performance.now();
         try {
             const data = await jobsApi.list();
             setJobs(data);
@@ -23,92 +27,107 @@ export const DashboardPage: React.FC = () => {
         } catch {
             setError('Failed to load jobs');
         } finally {
-            setIsLoading(false);
+            if (firstLoadRef.current) {
+                const elapsed = performance.now() - start;
+                const wait = Math.max(0, 220 - elapsed);
+                window.setTimeout(() => {
+                    firstLoadRef.current = false;
+                    setIsLoading(false);
+                }, wait);
+            }
         }
     }, []);
 
     useEffect(() => {
+        setState({ mode: 'idle' });
         fetchJobs();
 
         // Auto-refresh every 5 seconds
         const interval = setInterval(fetchJobs, 5000);
         return () => clearInterval(interval);
-    }, [fetchJobs]);
+    }, [fetchJobs, setState]);
 
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleString();
     };
 
     return (
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen">
             <Navbar />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold text-white">Your Jobs</h1>
+                    <div>
+                        <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--soac-text)]">Jobs</h1>
+                        <p className="mt-1 text-sm text-[color:var(--soac-muted)]">recent runs and active work</p>
+                    </div>
                     <Link to="/new" className="btn-primary">
                         + New Job
                     </Link>
                 </div>
 
                 {error && (
-                    <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-4">
+                    <div className="px-4 py-3 rounded-lg mb-4 border border-[color:var(--soac-border)] bg-[color:var(--soac-card)] text-[color:var(--soac-text)]">
                         {error}
                     </div>
                 )}
 
                 {isLoading ? (
                     <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                        <div className="w-full max-w-3xl space-y-3">
+                            <div className="soac-skeleton h-10 w-48" />
+                            <div className="soac-skeleton h-56 w-full" />
+                        </div>
                     </div>
                 ) : jobs.length === 0 ? (
                     <div className="card text-center py-12">
-                        <div className="text-gray-400 text-lg mb-4">No jobs yet</div>
+                        <div className="text-[color:var(--soac-muted)] text-lg mb-2">no jobs yet</div>
+                        <div className="text-[color:var(--soac-muted)] text-sm mb-4">upload a model to start a run</div>
                         <Link to="/new" className="btn-primary">
                             Create your first job
                         </Link>
                     </div>
                 ) : (
                     <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-700">
-                            <thead className="bg-gray-700/50">
+                        <table className="min-w-full divide-y divide-[color:var(--soac-border)]">
+                            <thead className="bg-[color:var(--soac-card-hover)]">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
                                         Job ID
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
                                         Model
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
                                         Created
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-700">
+                            <tbody className="divide-y divide-[color:var(--soac-border)]">
                                 {jobs.map((job) => (
-                                    <tr key={job.job_id} className="hover:bg-gray-700/30 transition-colors">
+                                    <tr key={job.job_id} className="transition-colors hover:bg-[color:var(--soac-card-hover)]">
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <code className="text-indigo-400 text-sm">{job.job_id}</code>
+                                            <code className="text-[color:var(--soac-secondary)] text-sm">{job.job_id}</code>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[color:var(--soac-text)]">
                                             {job.original_filename || 'model.onnx'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <StatusBadge status={job.state} />
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-400 text-sm">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[color:var(--soac-muted)] text-sm">
                                             {formatDate(job.created_at)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <Link
                                                 to={`/jobs/${job.job_id}`}
-                                                className="text-indigo-400 hover:text-indigo-300"
+                                                className="text-[color:var(--soac-secondary)] hover:text-[color:var(--soac-text)]"
                                             >
                                                 View Details →
                                             </Link>

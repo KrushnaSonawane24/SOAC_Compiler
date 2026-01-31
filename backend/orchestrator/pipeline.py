@@ -20,6 +20,7 @@ RULES:
 
 import logging
 import time
+import shutil
 from pathlib import Path
 from typing import Optional, Any
 
@@ -40,7 +41,19 @@ from .results import JobResult, StageResult, create_success_result, create_failu
 # Import SOAC units
 from backend.validator import validate_model
 from backend.compiler import canonicalize_model
-from backend.optimizer import generate_variants, select_best_variant, add_benchmark_metrics, VariantType
+from backend.compiler.onnx_converter import detect_format, convert_to_onnx, InputFormat
+from backend.compiler.exceptions import UnsupportedFormatError, ConversionError
+from backend.optimizer import (
+    generate_variants,
+    select_best_variant,
+    add_benchmark_metrics,
+    VariantType,
+    NoValidVariantsError,
+    filter_valid_variants,
+    rank_variants,
+    create_decision_trace,
+    SelectedVariant,
+)
 from backend.benchmark import measure_latency, measure_memory, measure_size, create_sample_input, create_synthetic_dataset, evaluate_accuracy
 from backend.deployment import generate_deployment_artifacts
 
@@ -88,6 +101,7 @@ class SOACPipeline:
         start = time.perf_counter()
         
         try:
+            self._ensure_onnx_input()
             self.ctx.log(f"Validating: {self.ctx.input_path}")
             
             # Use validator module
@@ -109,6 +123,65 @@ class SOACPipeline:
             raise
         except Exception as e:
             raise ValidationFailedError(self.ctx.job_id, str(e), e)
+
+    def _ensure_onnx_input(self) -> None:
+        """Normalize uploaded model into an ONNX file inside the job work directory."""
+        input_path = Path(self.ctx.input_path)
+        input_dir = self.ctx.work_dir / "input"
+        input_dir.mkdir(exist_ok=True)
+
+        ext = input_path.suffix.lower()
+        detected_format = None
+        try:
+            detected_format = detect_format(input_path).value
+        except Exception:
+            detected_format = ext.lstrip(".") or "unknown"
+
+        self.ctx.metadata.setdefault("pipeline_levels", [])
+        if "level0_readiness_audit" not in self.ctx.metadata["pipeline_levels"]:
+            self.ctx.metadata["pipeline_levels"].append("level0_readiness_audit")
+            self.ctx.metadata["input_detected_format"] = detected_format
+            self.ctx.log(f"[LEVEL 0] readiness audit: detected_format={detected_format}")
+
+        if ext == ".onnx":
+            normalized_path = input_dir / "input.onnx"
+            if input_path.resolve() != normalized_path.resolve():
+                shutil.copyfile(input_path, normalized_path)
+            self.ctx.input_path = normalized_path
+            self.ctx.add_artifact("input_onnx", normalized_path)
+            return
+
+        self.ctx.log("[LEVEL 1] converting to ONNX baseline")
+
+        try:
+            model_format = detect_format(input_path)
+        except Exception as e:
+            raise ValidationFailedError(
+                self.ctx.job_id,
+                f"Could not detect model format for {input_path.name}: {e}",
+                e,
+            )
+
+        if model_format == InputFormat.PYTORCH:
+            raise ValidationFailedError(
+                self.ctx.job_id,
+                "PyTorch .pt/.pth export requires a model signature. Upload ONNX or Keras/SavedModel/TFLite instead.",
+            )
+
+        output_path = input_dir / "normalized.onnx"
+        try:
+            onnx_model, _fmt = convert_to_onnx(input_path)
+            import onnx
+
+            onnx.save(onnx_model, str(output_path))
+        except (UnsupportedFormatError, ConversionError) as e:
+            raise ValidationFailedError(self.ctx.job_id, str(e), e)
+        except Exception as e:
+            raise ValidationFailedError(self.ctx.job_id, f"ONNX export failed: {e}", e)
+
+        self.ctx.input_path = output_path
+        self.ctx.add_artifact("normalized_onnx", output_path)
+        self.ctx.metadata["pipeline_levels"].append("level1_normalization")
     
     def run_canonicalization(self) -> Path:
         """Stage 2: Canonicalize model."""
@@ -175,77 +248,81 @@ class SOACPipeline:
     def run_benchmarking(self, variants: list) -> list:
         """Stage 4: Benchmark all variants."""
         self._transition(PipelineStage.BENCHMARKING)
-        start = time.perf_counter()
-        
-        try:
-            self.ctx.log("Benchmarking variants")
-            
-            # Create synthetic dataset for accuracy (minimal for speed)
-            dataset = create_synthetic_dataset(num_samples=20, seed=42)
-            
-            # Benchmark each variant
-            benchmarked = []
-            baseline_accuracy = None
-            
-            for variant in variants:
-                if not variant.is_valid:
+        max_attempts = max(1, int(self.ctx.config.max_stage_attempts))
+
+        for attempt in range(1, max_attempts + 1):
+            start = time.perf_counter()
+            self.ctx._audit(event="stage_attempt_start", stage=PipelineStage.BENCHMARKING.value, attempt=attempt)
+            try:
+                self.ctx.log(f"Benchmarking variants (attempt {attempt}/{max_attempts})")
+
+                dataset = create_synthetic_dataset(num_samples=20, seed=42)
+
+                benchmarked = []
+                baseline_accuracy = None
+
+                for variant in variants:
+                    if not variant.is_valid:
+                        benchmarked.append(variant)
+                        continue
+
+                    try:
+                        sample_input = create_sample_input(variant.onnx_path)
+
+                        latency = measure_latency(
+                            variant.onnx_path,
+                            sample_input,
+                            warmup_runs=self.ctx.config.warmup_runs,
+                            measured_runs=self.ctx.config.measured_runs,
+                        )
+
+                        memory = measure_memory(variant.onnx_path, sample_input)
+
+                        acc_result = evaluate_accuracy(
+                            variant.onnx_path,
+                            dataset,
+                            baseline_accuracy=baseline_accuracy,
+                        )
+
+                        if baseline_accuracy is None:
+                            baseline_accuracy = acc_result.accuracy
+
+                        variant = add_benchmark_metrics(
+                            variant,
+                            latency_ms=latency.median_ms,
+                            throughput=1000 / latency.median_ms,
+                            memory_mb=memory.peak_mb,
+                            accuracy=acc_result.accuracy,
+                            baseline_accuracy=baseline_accuracy,
+                        )
+
+                        self.ctx.log(f"  {variant.variant_type.value}: {latency.median_ms:.2f}ms")
+
+                    except Exception as e:
+                        self.ctx.log(f"  {variant.variant_type.value}: benchmark failed - {e}")
+
                     benchmarked.append(variant)
+
+                duration = (time.perf_counter() - start) * 1000
+                self.ctx._audit(event="stage_attempt_success", stage=PipelineStage.BENCHMARKING.value, attempt=attempt, duration_ms=duration)
+                self._record_stage(
+                    PipelineStage.BENCHMARKING,
+                    True,
+                    duration,
+                    f"Benchmarked {len(benchmarked)} variants",
+                )
+
+                return benchmarked
+
+            except Exception as e:
+                duration = (time.perf_counter() - start) * 1000
+                self.ctx._audit(event="stage_attempt_failed", stage=PipelineStage.BENCHMARKING.value, attempt=attempt, duration_ms=duration, error=str(e))
+                if attempt < max_attempts:
+                    backoff = (self.ctx.config.retry_backoff_ms / 1000.0) * attempt
+                    self.ctx.log(f"Benchmarking failed (attempt {attempt}). Retrying in {backoff:.1f}s")
+                    time.sleep(backoff)
                     continue
-                
-                try:
-                    # Create sample input
-                    sample_input = create_sample_input(variant.onnx_path)
-                    
-                    # Measure latency
-                    latency = measure_latency(
-                        variant.onnx_path,
-                        sample_input,
-                        warmup_runs=self.ctx.config.warmup_runs,
-                        measured_runs=self.ctx.config.measured_runs,
-                    )
-                    
-                    # Measure memory
-                    memory = measure_memory(variant.onnx_path, sample_input)
-                    
-                    # Get accuracy
-                    acc_result = evaluate_accuracy(
-                        variant.onnx_path,
-                        dataset,
-                        baseline_accuracy=baseline_accuracy,
-                    )
-                    
-                    if baseline_accuracy is None:
-                        baseline_accuracy = acc_result.accuracy
-                    
-                    # Add metrics to variant
-                    variant = add_benchmark_metrics(
-                        variant,
-                        latency_ms=latency.median_ms,
-                        throughput=1000 / latency.median_ms,
-                        memory_mb=memory.peak_mb,
-                        accuracy=acc_result.accuracy,
-                        baseline_accuracy=baseline_accuracy,
-                    )
-                    
-                    self.ctx.log(f"  {variant.variant_type.value}: {latency.median_ms:.2f}ms")
-                    
-                except Exception as e:
-                    self.ctx.log(f"  {variant.variant_type.value}: benchmark failed - {e}")
-                
-                benchmarked.append(variant)
-            
-            duration = (time.perf_counter() - start) * 1000
-            self._record_stage(
-                PipelineStage.BENCHMARKING,
-                True,
-                duration,
-                f"Benchmarked {len(benchmarked)} variants",
-            )
-            
-            return benchmarked
-            
-        except Exception as e:
-            raise BenchmarkingFailedError(self.ctx.job_id, str(e), e)
+                raise BenchmarkingFailedError(self.ctx.job_id, str(e), e)
     
     def run_selection(self, variants: list):
         """Stage 5: Select best variant using ALO."""
@@ -256,12 +333,52 @@ class SOACPipeline:
             self.ctx.log("Running ALO selection")
             
             input_hash = self.ctx.metadata.get("canonical_hash", "unknown")
+
+            max_size_bytes = int(self.ctx.config.max_model_size_mb) * 1024 * 1024
             
-            selection = select_best_variant(
-                variants,
-                input_hash,
-                accuracy_threshold=self.ctx.config.accuracy_threshold,
-            )
+            try:
+                selection = select_best_variant(
+                    variants,
+                    input_hash,
+                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                    max_size_bytes=max_size_bytes,
+                )
+            except NoValidVariantsError as e:
+                self.ctx.log("No optimized variants met constraints; attempting baseline rollback")
+
+                baseline = next((v for v in variants if v.variant_type == VariantType.BASELINE and v.is_valid), None)
+                if not baseline:
+                    raise
+
+                if baseline.size_bytes > max_size_bytes:
+                    raise SelectionFailedError(
+                        self.ctx.job_id,
+                        f"Baseline model exceeds size limit ({baseline.size_bytes}B > {max_size_bytes}B).",
+                        e,
+                    )
+
+                valid_variants, rejected = filter_valid_variants(
+                    variants,
+                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                    max_size_bytes=max_size_bytes,
+                )
+                ranking = rank_variants([baseline])
+                trace = create_decision_trace(
+                    input_hash=input_hash,
+                    all_variants=variants,
+                    valid_variants=[baseline],
+                    rejected=rejected,
+                    ranking=ranking,
+                    selected_id=baseline.variant_id,
+                    selection_reason="Rolled back to baseline for stability and constraints compliance",
+                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                )
+                selection = SelectedVariant(
+                    variant=baseline,
+                    decision_trace=trace,
+                    all_variants=variants,
+                    rejected_variants=rejected,
+                )
             
             # Calculate summary metrics for frontend
             try:
@@ -330,39 +447,50 @@ class SOACPipeline:
     def run_deployment(self, selection, canonical_path: Optional[Path] = None) -> Path:
         """Stage 6: Generate deployment artifacts."""
         self._transition(PipelineStage.DEPLOYING)
-        start = time.perf_counter()
-        
-        try:
-            self.ctx.log("Generating deployment artifacts")
-            
-            bundle = generate_deployment_artifacts(
-                selection.variant.onnx_path,
-                variant_id=selection.variant.variant_id,
-                source_hash=selection.variant.graph_hash,
-                output_dir=self.ctx.deployment_dir,
-                canonical_path=canonical_path,
-            )
-            
-            self.ctx.add_artifact("deployment", bundle.output_dir)
-            self.ctx.metadata["deployment_summary"] = {
-                "successful": bundle.successful_count,
-                "skipped": bundle.skipped_count,
-                "failed": bundle.failed_count,
-            }
-            
-            duration = (time.perf_counter() - start) * 1000
-            self._record_stage(
-                PipelineStage.DEPLOYING,
-                True,
-                duration,
-                f"Deployment: {bundle.successful_count} success, {bundle.skipped_count} skipped",
-                {"bundle": str(bundle.output_dir)},
-            )
-            
-            return bundle.output_dir
-            
-        except Exception as e:
-            raise DeploymentFailedError(self.ctx.job_id, str(e), e)
+        max_attempts = max(1, int(self.ctx.config.max_stage_attempts))
+
+        for attempt in range(1, max_attempts + 1):
+            start = time.perf_counter()
+            self.ctx._audit(event="stage_attempt_start", stage=PipelineStage.DEPLOYING.value, attempt=attempt)
+            try:
+                self.ctx.log(f"Generating deployment artifacts (attempt {attempt}/{max_attempts})")
+
+                bundle = generate_deployment_artifacts(
+                    selection.variant.onnx_path,
+                    variant_id=selection.variant.variant_id,
+                    source_hash=selection.variant.graph_hash,
+                    output_dir=self.ctx.deployment_dir,
+                    canonical_path=canonical_path,
+                )
+
+                self.ctx.add_artifact("deployment", bundle.output_dir)
+                self.ctx.metadata["deployment_summary"] = {
+                    "successful": bundle.successful_count,
+                    "skipped": bundle.skipped_count,
+                    "failed": bundle.failed_count,
+                }
+
+                duration = (time.perf_counter() - start) * 1000
+                self.ctx._audit(event="stage_attempt_success", stage=PipelineStage.DEPLOYING.value, attempt=attempt, duration_ms=duration)
+                self._record_stage(
+                    PipelineStage.DEPLOYING,
+                    True,
+                    duration,
+                    f"Deployment: {bundle.successful_count} success, {bundle.skipped_count} skipped",
+                    {"bundle": str(bundle.output_dir)},
+                )
+
+                return bundle.output_dir
+
+            except Exception as e:
+                duration = (time.perf_counter() - start) * 1000
+                self.ctx._audit(event="stage_attempt_failed", stage=PipelineStage.DEPLOYING.value, attempt=attempt, duration_ms=duration, error=str(e))
+                if attempt < max_attempts:
+                    backoff = (self.ctx.config.retry_backoff_ms / 1000.0) * attempt
+                    self.ctx.log(f"Deployment failed (attempt {attempt}). Retrying in {backoff:.1f}s")
+                    time.sleep(backoff)
+                    continue
+                raise DeploymentFailedError(self.ctx.job_id, str(e), e)
     
     def run(self) -> JobResult:
         """
@@ -386,6 +514,8 @@ class SOACPipeline:
         try:
             with reproducible_context(enabled=build_mode == BuildMode.REPRODUCIBLE, seed=seed):
                 self.ctx.log(f"Starting SOAC job: {self.ctx.job_id} (mode: {build_mode.value})")
+
+                self.ctx.add_artifact("audit_log", self.ctx.audit_path)
                 
                 # Hash input file
                 input_hash = hash_file(self.ctx.input_path)

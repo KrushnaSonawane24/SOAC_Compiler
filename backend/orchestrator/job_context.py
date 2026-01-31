@@ -13,6 +13,7 @@ import tempfile
 import shutil
 import uuid
 import logging
+import json
 
 from .exceptions import PipelineStage
 
@@ -38,7 +39,10 @@ class JobConfig:
         simulate_latency_spike: Inject latency multiplier.
         simulate_memory_exceed: Inject memory usage (MB).
     """
-    accuracy_threshold: float = 0.02
+    accuracy_threshold: float = 0.01
+    max_model_size_mb: int = 200
+    max_stage_attempts: int = 2
+    retry_backoff_ms: int = 600
     generate_all_targets: bool = True
     deployment_targets: Optional[List[str]] = None
     warmup_runs: int = 5
@@ -70,6 +74,9 @@ class JobConfig:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "accuracy_threshold": self.accuracy_threshold,
+            "max_model_size_mb": self.max_model_size_mb,
+            "max_stage_attempts": self.max_stage_attempts,
+            "retry_backoff_ms": self.retry_backoff_ms,
             "generate_all_targets": self.generate_all_targets,
             "deployment_targets": self.deployment_targets,
             "warmup_runs": self.warmup_runs,
@@ -100,6 +107,26 @@ class JobContext:
     metadata: Dict[str, Any] = field(default_factory=dict)
     logs: List[str] = field(default_factory=list)
     log_callback: Optional[Any] = None
+    audit_path: Path = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.audit_path = self.work_dir / "audit.jsonl"
+        self._audit(
+            event="job_created",
+            job_id=self.job_id,
+            input_path=str(self.input_path),
+            config=self.config.to_dict(),
+        )
+
+    def _audit(self, **payload: Any) -> None:
+        payload["timestamp"] = datetime.now(timezone.utc).isoformat()
+        payload["stage"] = self.current_stage.value
+        try:
+            self.audit_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.audit_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
     
     @property
     def canonical_dir(self) -> Path:
@@ -137,11 +164,13 @@ class JobContext:
     def set_stage(self, stage: PipelineStage):
         """Update current stage."""
         self.current_stage = stage
+        self._audit(event="stage_transition", to_stage=stage.value)
         self.log(f"Stage: {stage.value}")
     
     def add_artifact(self, name: str, path: Path):
         """Register an artifact."""
         self.artifacts[name] = path
+        self._audit(event="artifact_added", name=name, path=str(path))
         self.log(f"Artifact: {name} -> {path}")
     
     def cleanup(self):

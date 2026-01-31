@@ -10,48 +10,59 @@ import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewJobPage } from './pages/NewJobPage';
 import { JobDetailPage } from './pages/JobDetailPage';
+import { ThemeProvider } from './theme/ThemeContext';
+import { AmbientBackground } from './components/AmbientBackground';
+import { MascotProvider } from './mascot/MascotContext';
+import { SoacChan } from './components/SoacChan';
 import './index.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <MascotProvider>
+            <div className="relative min-h-screen">
+              <AmbientBackground />
+              <div className="relative z-10 min-h-screen">
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/new"
-            element={
-              <ProtectedRoute>
-                <NewJobPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/jobs/:jobId"
-            element={
-              <ProtectedRoute>
-                <JobDetailPage />
-              </ProtectedRoute>
-            }
-          />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/new"
+                    element={
+                      <ProtectedRoute>
+                        <NewJobPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/jobs/:jobId"
+                    element={
+                      <ProtectedRoute>
+                        <JobDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+              <SoacChan />
+            </div>
+          </MascotProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

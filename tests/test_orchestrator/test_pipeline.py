@@ -87,7 +87,8 @@ class TestJobConfig:
         """Default config has correct values."""
         config = JobConfig()
         
-        assert config.accuracy_threshold == 0.02
+        assert config.accuracy_threshold == 0.01
+        assert config.max_model_size_mb == 200
         assert config.cleanup_on_complete == True
     
     def test_config_serializable(self, test_config):

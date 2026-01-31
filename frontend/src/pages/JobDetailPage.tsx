@@ -12,6 +12,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ProgressTimeline } from '../components/ProgressTimeline';
 import { LogViewer } from '../components/LogViewer';
 import { LatencyChart } from '../charts/LatencyChart';
+import { useMascot } from '../mascot/MascotContext';
 
 type BenchmarkSummary = {
     baseline_latency?: number | null;
@@ -35,9 +36,12 @@ export const JobDetailPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'artifacts'>('overview');
     const [isLive, setIsLive] = useState(false);
     const lastKnownStateRef = useRef<Job['state'] | null>(null);
+    const firstLoadRef = useRef(true);
+    const { setState: setMascotState } = useMascot();
 
     const fetchData = useCallback(async () => {
         if (!jobId) return;
+        const start = performance.now();
 
         try {
             const [jobData, logsData] = await Promise.all([
@@ -50,15 +54,27 @@ export const JobDetailPage: React.FC = () => {
 
             if ('artifacts' in jobData && Array.isArray(jobData.artifacts)) setArtifacts(jobData.artifacts);
             setIsLive(!['completed', 'failed'].includes(jobData.state));
+            if (jobData.state === 'completed') setMascotState({ mode: 'success' });
+            else if (jobData.state === 'failed') setMascotState({ mode: 'failure' });
+            else if (jobData.state === 'benchmarking') setMascotState({ mode: 'benchmarking' });
+            else setMascotState({ mode: 'thinking' });
 
             setError(null);
         } catch {
             setError('Failed to load job details');
             setIsLive(false);
+            setMascotState({ mode: 'failure', message: 'could not load job details' });
         } finally {
-            setIsLoading(false);
+            if (firstLoadRef.current) {
+                const elapsed = performance.now() - start;
+                const wait = Math.max(0, 240 - elapsed);
+                window.setTimeout(() => {
+                    firstLoadRef.current = false;
+                    setIsLoading(false);
+                }, wait);
+            }
         }
-    }, [jobId]);
+    }, [jobId, setMascotState]);
 
     useEffect(() => {
         fetchData();
@@ -90,24 +106,32 @@ export const JobDetailPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-900">
+            <div className="min-h-screen">
                 <Navbar />
-                <div className="flex justify-center py-24">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-                </div>
+                <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="space-y-6">
+                        <div className="soac-skeleton h-8 w-72" />
+                        <div className="soac-skeleton h-24 w-full" />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="soac-skeleton h-56 w-full" />
+                            <div className="soac-skeleton h-56 w-full" />
+                        </div>
+                        <div className="soac-skeleton h-72 w-full" />
+                    </div>
+                </main>
             </div>
         );
     }
 
     if (error || !job) {
         return (
-            <div className="min-h-screen bg-gray-900">
+            <div className="min-h-screen">
                 <Navbar />
                 <div className="max-w-4xl mx-auto px-4 py-8">
-                    <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg">
+                    <div className="px-4 py-3 rounded-lg border border-[color:var(--soac-border)] bg-[color:var(--soac-card)] text-[color:var(--soac-text)]">
                         {error || 'Job not found'}
                     </div>
-                    <Link to="/" className="text-indigo-400 hover:text-indigo-300 mt-4 inline-block">
+                    <Link to="/" className="text-[color:var(--soac-secondary)] hover:text-[color:var(--soac-text)] mt-4 inline-block">
                         ← Back to Dashboard
                     </Link>
                 </div>
@@ -125,18 +149,18 @@ export const JobDetailPage: React.FC = () => {
     const selectionReason: string | undefined = typeof selectionReasonValue === 'string' ? selectionReasonValue : undefined;
 
     return (
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen">
             <Navbar />
 
             <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <Link to="/" className="text-indigo-400 hover:text-indigo-300 text-sm mb-2 inline-block">
+                        <Link to="/" className="text-[color:var(--soac-secondary)] hover:text-[color:var(--soac-text)] text-sm mb-2 inline-block">
                             ← Back to Dashboard
                         </Link>
-                        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                            <code className="text-indigo-400">{job.job_id}</code>
+                        <h1 className="text-2xl font-semibold tracking-tight text-[color:var(--soac-text)] flex items-center gap-3">
+                            <code className="text-[color:var(--soac-secondary)]">{job.job_id}</code>
                             <StatusBadge status={job.state} />
                             {isLive && (
                                 <span className="flex h-3 w-3 relative">
@@ -150,19 +174,19 @@ export const JobDetailPage: React.FC = () => {
 
                 {/* Progress Timeline */}
                 <div className="card mb-6">
-                    <h2 className="text-lg font-semibold text-white mb-4">Pipeline Progress</h2>
+                    <h2 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Pipeline Progress</h2>
                     <ProgressTimeline currentState={job.state} />
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 mb-6 bg-gray-800 p-1 rounded-lg w-fit">
+                <div className="flex gap-1 mb-6 p-1 rounded-lg w-fit bg-[color:var(--soac-card)] border border-[color:var(--soac-card-border)] backdrop-blur-[var(--soac-blur)]">
                     {(['overview', 'logs', 'artifacts'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors ${activeTab === tab
-                                ? 'bg-indigo-600 text-white'
-                                : 'text-gray-400 hover:text-white'
+                                ? 'bg-[color:var(--soac-primary)] text-white'
+                                : 'text-[color:var(--soac-muted)] hover:text-[color:var(--soac-text)]'
                                 }`}
                         >
                             {tab}
@@ -176,52 +200,52 @@ export const JobDetailPage: React.FC = () => {
                         
                         {/* Optimization Summary - NEW SECTION */}
                         {summary ? (
-                            <div className="card lg:col-span-2 bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700">
-                                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                    <span className="text-green-400">⚡</span> Optimization Results
+                            <div className="card lg:col-span-2">
+                                <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4 flex items-center gap-2">
+                                    <span className="text-[color:var(--soac-primary)]">⚡</span> Optimization Results
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {/* Speedup */}
-                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                        <div className="text-gray-400 text-sm mb-1">Speedup</div>
-                                        <div className="text-3xl font-bold text-green-400">
+                                    <div className="p-4 rounded-lg border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)]">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Speedup</div>
+                                        <div className="text-3xl font-bold text-[color:var(--soac-success)]">
                                             {summary.speedup ? `${summary.speedup}x` : '-'}
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-2 flex justify-between">
+                                        <div className="text-xs text-[color:var(--soac-muted)] mt-2 flex justify-between">
                                             <span>
                                                 Original: {typeof summary?.baseline_latency === 'number' ? `${summary.baseline_latency.toFixed(2)}ms` : '-'}
                                             </span>
-                                            <span className="text-white">
+                                            <span className="text-[color:var(--soac-text)]">
                                                 Now: {typeof summary?.selected_latency === 'number' ? `${summary.selected_latency.toFixed(2)}ms` : '-'}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Size Reduction */}
-                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                        <div className="text-gray-400 text-sm mb-1">Size Reduction</div>
-                                        <div className="text-3xl font-bold text-blue-400">
+                                    <div className="p-4 rounded-lg border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)]">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Size Reduction</div>
+                                        <div className="text-3xl font-bold text-[color:var(--soac-secondary)]">
                                             {summary.size_reduction ? `${summary.size_reduction}%` : '-'}
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-2 flex justify-between">
+                                        <div className="text-xs text-[color:var(--soac-muted)] mt-2 flex justify-between">
                                             <span>
                                                 Original: {typeof summary?.baseline_size === 'number' ? `${(summary.baseline_size / 1024 / 1024).toFixed(1)}MB` : '-'}
                                             </span>
-                                            <span className="text-white">
+                                            <span className="text-[color:var(--soac-text)]">
                                                 Now: {typeof summary?.selected_size === 'number' ? `${(summary.selected_size / 1024 / 1024).toFixed(1)}MB` : '-'}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Quality/Accuracy */}
-                                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-                                        <div className="text-gray-400 text-sm mb-1">Quality Check</div>
-                                        <div className={`text-3xl font-bold ${(summary.accuracy_drop ?? 0) > 0.02 ? 'text-red-400' : 'text-indigo-400'}`}>
+                                    <div className="p-4 rounded-lg border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)]">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Quality Check</div>
+                                        <div className={`text-3xl font-bold ${(summary.accuracy_drop ?? 0) > 0.02 ? 'text-[color:var(--soac-error)]' : 'text-[color:var(--soac-secondary)]'}`}>
                                             {summary.accuracy_drop !== undefined && summary.accuracy_drop !== null 
                                                 ? (summary.accuracy_drop <= 0.001 ? 'Lossless' : `-${(summary.accuracy_drop * 100).toFixed(2)}%`) 
                                                 : 'Verified'}
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-2">
+                                        <div className="text-xs text-[color:var(--soac-muted)] mt-2">
                                             {(summary.accuracy_drop ?? 0) > 0.02 ? 'Exceeds threshold' : 'Within 2% threshold'}
                                         </div>
                                     </div>
@@ -231,19 +255,19 @@ export const JobDetailPage: React.FC = () => {
 
                         {/* Job Info */}
                         <div className="card">
-                            <h3 className="text-lg font-semibold text-white mb-4">Job Information</h3>
+                            <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Job Information</h3>
                             <dl className="space-y-3">
                                 <div className="flex justify-between">
-                                    <dt className="text-gray-400">Created</dt>
-                                    <dd className="text-white">{new Date(job.created_at).toLocaleString()}</dd>
+                                    <dt className="text-[color:var(--soac-muted)]">Created</dt>
+                                    <dd className="text-[color:var(--soac-text)]">{new Date(job.created_at).toLocaleString()}</dd>
                                 </div>
                                 <div className="flex justify-between">
-                                    <dt className="text-gray-400">Model</dt>
-                                    <dd className="text-white">{job.original_filename || 'model.onnx'}</dd>
+                                    <dt className="text-[color:var(--soac-muted)]">Model</dt>
+                                    <dd className="text-[color:var(--soac-text)]">{job.original_filename || 'model.onnx'}</dd>
                                 </div>
                                 {selectedVariant && (
                                     <div className="flex justify-between">
-                                        <dt className="text-gray-400">Selected Variant</dt>
+                                        <dt className="text-[color:var(--soac-muted)]">Selected Variant</dt>
                                         <dd className="text-green-400 font-mono">{selectedVariant}</dd>
                                     </div>
                                 )}
@@ -253,11 +277,11 @@ export const JobDetailPage: React.FC = () => {
                         {/* Build Fingerprint */}
                         {fingerprint ? (
                             <div className="card">
-                                <h3 className="text-lg font-semibold text-white mb-4">Build Fingerprint</h3>
-                                <div className="bg-gray-900 rounded-lg p-4">
+                                <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Build Fingerprint</h3>
+                                <div className="rounded-lg p-4 bg-[color:var(--soac-card-hover)] border border-[color:var(--soac-border)]">
                                     <code className="text-green-400 text-sm break-all">{fingerprint}</code>
                                 </div>
-                                <p className="text-gray-400 text-sm mt-2">
+                                <p className="text-[color:var(--soac-muted)] text-sm mt-2">
                                     Unique hash for reproducibility verification
                                 </p>
                             </div>
@@ -266,7 +290,7 @@ export const JobDetailPage: React.FC = () => {
                         {/* Stage Timing */}
                         {job.stages?.length ? (
                             <div className="card lg:col-span-2">
-                                <h3 className="text-lg font-semibold text-white mb-4">Stage Timing</h3>
+                                <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Stage Timing</h3>
                                 <LatencyChart
                                     data={job.stages.map((s) => ({
                                         name: ((s && s.name) || 'unknown').replace('ing', ''),
@@ -280,9 +304,9 @@ export const JobDetailPage: React.FC = () => {
                         {/* Explainability (if available) */}
                         {selectionReason ? (
                             <div className="card lg:col-span-2">
-                                <h3 className="text-lg font-semibold text-white mb-4">Selection Rationale</h3>
-                                <div className="bg-indigo-900/30 border border-indigo-700 rounded-lg p-4">
-                                    <p className="text-indigo-300">{selectionReason}</p>
+                                <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Selection Rationale</h3>
+                                <div className="rounded-lg p-4 bg-[color:var(--soac-card-hover)] border border-[color:var(--soac-border)]">
+                                    <p className="text-[color:var(--soac-text)]">{selectionReason}</p>
                                 </div>
                             </div>
                         ) : null}
@@ -291,21 +315,21 @@ export const JobDetailPage: React.FC = () => {
 
                 {activeTab === 'logs' && (
                     <div className="card">
-                        <h3 className="text-lg font-semibold text-white mb-4">Execution Logs</h3>
+                        <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Execution Logs</h3>
                         <LogViewer logs={logs} />
                     </div>
                 )}
 
                 {activeTab === 'artifacts' && (
                     <div className="card">
-                        <h3 className="text-lg font-semibold text-white mb-4">Deployment Artifacts</h3>
+                        <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Deployment Artifacts</h3>
 
                         {job.state !== 'completed' ? (
-                            <div className="text-gray-400 text-center py-8">
+                            <div className="text-[color:var(--soac-muted)] text-center py-8">
                                 Artifacts will be available after job completion
                             </div>
                         ) : artifacts.length === 0 ? (
-                            <div className="text-gray-400 text-center py-8">
+                            <div className="text-[color:var(--soac-muted)] text-center py-8">
                                 No artifacts found
                             </div>
                         ) : (
@@ -313,11 +337,11 @@ export const JobDetailPage: React.FC = () => {
                                 {artifacts.map((artifact) => (
                                     <div
                                         key={artifact.artifact_id}
-                                        className="flex items-center justify-between bg-gray-700/50 rounded-lg p-4"
+                                        className="flex items-center justify-between rounded-lg p-4 bg-[color:var(--soac-card-hover)] border border-[color:var(--soac-border)]"
                                     >
                                         <div>
-                                            <div className="text-white font-medium">{artifact.name}</div>
-                                            <div className="text-gray-400 text-sm">
+                                            <div className="text-[color:var(--soac-text)] font-medium">{artifact.name}</div>
+                                            <div className="text-[color:var(--soac-muted)] text-sm">
                                                 {artifact.platform} • {artifact.format} • {(artifact.size_bytes / 1024).toFixed(1)} KB • {artifact.status}
                                             </div>
                                         </div>

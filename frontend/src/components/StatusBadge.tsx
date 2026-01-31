@@ -10,15 +10,15 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<JobState, { color: string; label: string }> = {
-    created: { color: 'bg-gray-500', label: 'Created' },
-    validating: { color: 'bg-blue-500', label: 'Validating' },
-    canonicalizing: { color: 'bg-blue-500', label: 'Canonicalizing' },
-    optimizing: { color: 'bg-purple-500', label: 'Optimizing' },
-    benchmarking: { color: 'bg-orange-500', label: 'Benchmarking' },
-    selecting: { color: 'bg-yellow-500', label: 'Selecting' },
-    deploying: { color: 'bg-cyan-500', label: 'Deploying' },
-    completed: { color: 'bg-green-500', label: 'Completed' },
-    failed: { color: 'bg-red-500', label: 'Failed' },
+    created: { color: 'var(--soac-stage-created)', label: 'Created' },
+    validating: { color: 'var(--soac-stage-validating)', label: 'Validating' },
+    canonicalizing: { color: 'var(--soac-stage-canonicalizing)', label: 'Canonicalizing' },
+    optimizing: { color: 'var(--soac-stage-optimizing)', label: 'Optimizing' },
+    benchmarking: { color: 'var(--soac-stage-benchmarking)', label: 'Benchmarking' },
+    selecting: { color: 'var(--soac-stage-selecting)', label: 'Selecting' },
+    deploying: { color: 'var(--soac-stage-deploying)', label: 'Deploying' },
+    completed: { color: 'var(--soac-stage-completed)', label: 'Completed' },
+    failed: { color: 'var(--soac-stage-failed)', label: 'Failed' },
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
@@ -26,7 +26,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 
     return (
         <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${config.color}`}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+            style={{ backgroundColor: config.color }}
         >
             {config.label}
         </span>

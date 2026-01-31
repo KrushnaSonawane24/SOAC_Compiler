@@ -8,7 +8,6 @@ Job management endpoints.
 from fastapi import APIRouter, Depends, UploadFile, File, Query, Form
 from fastapi.responses import FileResponse
 from typing import Optional, List, Dict
-import shutil
 import uuid
 from pathlib import Path
 
@@ -20,9 +19,10 @@ from .schemas import (
     LogEntryResponse,
 )
 from .errors import NotFoundError, ForbiddenError
-from .dependencies import get_current_user, get_manager, get_upload_dir
+from .dependencies import get_current_user, get_manager
 
 from backend.jobs import JobManager, JobNotFoundError, ArtifactNotFoundError, UnauthorizedAccessError
+from backend.security import secure_save_and_validate
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -44,21 +44,13 @@ async def create_job(
     # Validate file
     if not file.filename:
         raise ForbiddenError("No filename provided")
-    
-    # Supported file formats (ONNX, TensorFlow, PyTorch)
-    SUPPORTED_EXTENSIONS = ('.onnx', '.h5', '.keras', '.pb', '.tflite', '.mlmodel', '.pt', '.pth')
-    if not file.filename.endswith(SUPPORTED_EXTENSIONS):
-        raise ForbiddenError(f"Unsupported file format. Supported: {', '.join(SUPPORTED_EXTENSIONS)}")
-    
-    # Save uploaded file
-    upload_dir = get_upload_dir()
+
+    # Save + validate uploaded file securely
     file_id = uuid.uuid4().hex[:12]
-    file_path = upload_dir / f"{file_id}_{file.filename}"
-    
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    
-    file_size = file_path.stat().st_size
+
+    upload_meta = await secure_save_and_validate(upload_file=file, job_id=file_id)
+    file_path = Path(upload_meta.file_path)
+    file_size = upload_meta.file_size
     
     # Parse targets if they come as a single comma-separated string (common in FormData)
     if len(targets) == 1 and "," in targets[0]:
@@ -73,6 +65,12 @@ async def create_job(
         config={
             "targets": targets,
             "policy": policy,
+            "upload": {
+                "sha256": upload_meta.file_hash,
+                "detected_format": upload_meta.model_format,
+                "mime_type": upload_meta.mime_type,
+                "validated_at": upload_meta.validation_timestamp,
+            },
         }
     )
     

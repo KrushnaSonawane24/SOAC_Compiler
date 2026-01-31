@@ -7,11 +7,11 @@ File upload handling.
 
 from fastapi import APIRouter, UploadFile, File, Depends
 from pydantic import BaseModel
-from pathlib import Path
-import shutil
+from typing import Optional
 import uuid
 
-from .dependencies import get_current_user, get_upload_dir
+from .dependencies import get_current_user
+from backend.security import secure_save_and_validate
 
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -22,6 +22,8 @@ class UploadResponse(BaseModel):
     file_id: str
     filename: str
     size_bytes: int
+    sha256: Optional[str] = None
+    detected_format: Optional[str] = None
     message: str = "File uploaded successfully"
 
 
@@ -36,18 +38,14 @@ async def upload_file(
     Alternative to using POST /jobs directly.
     Returns a file_id that can be used with job creation.
     """
-    upload_dir = get_upload_dir()
     file_id = uuid.uuid4().hex[:12]
-    
-    # Preserve original extension
-    ext = Path(file.filename).suffix if file.filename else ".onnx"
-    file_path = upload_dir / f"{file_id}{ext}"
-    
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    
+
+    upload_meta = await secure_save_and_validate(upload_file=file, job_id=file_id)
+
     return UploadResponse(
         file_id=file_id,
         filename=file.filename or "unknown",
-        size_bytes=file_path.stat().st_size,
+        size_bytes=upload_meta.file_size,
+        sha256=upload_meta.file_hash,
+        detected_format=upload_meta.model_format,
     )

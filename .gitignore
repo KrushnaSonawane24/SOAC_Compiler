@@ -1,0 +1,27 @@
+.env
+.env.*
+
+.trae/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+.ruff_cache/
+
+soac.egg-info/
+
+verify_deployment_out/
+
+*.onnx
+
+# Local scratch scripts
+check_*.py
+debug_*.py
+reproduce_issue.py
+verify_deployment.py
+test_backend_api.py
+test_log_streaming.py
+generate_benchmark_report.py
+onnx2tf_help.txt

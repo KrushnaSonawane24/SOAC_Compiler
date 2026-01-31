@@ -66,27 +66,30 @@ export const RegisterPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+        <div className="min-h-screen flex items-center justify-center px-4">
             <div className="max-w-md w-full space-y-8">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-white">
-                        <span className="text-indigo-500">SOAC</span>
+                    <h1 className="text-3xl font-semibold tracking-tight">
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-[color:var(--soac-primary)] to-[color:var(--soac-secondary)]">
+                            SOAC
+                        </span>
+                        <span className="text-[color:var(--soac-muted)] font-normal ml-2">AI Lab</span>
                     </h1>
-                    <p className="mt-2 text-gray-400">Create your account</p>
+                    <p className="mt-2 text-[color:var(--soac-muted)]">create your account</p>
                 </div>
 
                 <div className="card">
-                    <h2 className="text-2xl font-semibold text-white mb-6">Sign up</h2>
+                    <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6">Sign up</h2>
 
                     {error && (
-                        <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-4">
+                        <div className="px-4 py-3 rounded-lg mb-4 border border-[color:var(--soac-border)] bg-[color:var(--soac-card)] text-[color:var(--soac-text)]">
                             {error}
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-[color:var(--soac-muted)] mb-1">
                                 Email
                             </label>
                             <input
@@ -100,7 +103,7 @@ export const RegisterPage: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-[color:var(--soac-muted)] mb-1">
                                 Password
                             </label>
                             <input
@@ -114,7 +117,7 @@ export const RegisterPage: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
+                            <label className="block text-sm font-medium text-[color:var(--soac-muted)] mb-1">
                                 Confirm Password
                             </label>
                             <input
@@ -132,13 +135,13 @@ export const RegisterPage: React.FC = () => {
                             disabled={isLoading}
                             className="btn-primary w-full disabled:opacity-50"
                         >
-                            {isLoading ? 'Creating account...' : 'Create account'}
+                            {isLoading ? 'Creating account…' : 'Create account'}
                         </button>
                     </form>
 
-                    <p className="mt-6 text-center text-gray-400">
+                    <p className="mt-6 text-center text-[color:var(--soac-muted)]">
                         Already have an account?{' '}
-                        <Link to="/login" className="text-indigo-400 hover:text-indigo-300">
+                        <Link to="/login" className="text-[color:var(--soac-secondary)] hover:text-[color:var(--soac-text)]">
                             Sign in
                         </Link>
                     </p>

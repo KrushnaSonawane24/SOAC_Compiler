@@ -8,7 +8,7 @@ ALO IS NOT ML TRAINING.
 ALO uses deterministic, explainable rules to select optimal variants.
 
 DECISION RULES (NON-NEGOTIABLE):
-    1. REJECT any variant with accuracy_drop > 2%
+    1. REJECT any variant with accuracy_drop > 1%
     2. Among valid variants:
        a. Select LOWEST latency
        b. Tie-breaker: SMALLEST size
@@ -53,7 +53,7 @@ def check_accuracy_constraint(
     
     Args:
         variant: The variant to check.
-        threshold: Maximum allowed accuracy drop (default 2%).
+        threshold: Maximum allowed accuracy drop (default 1%).
     
     Returns:
         Tuple of (is_valid, rejection_reason).
@@ -71,6 +71,7 @@ def check_accuracy_constraint(
 def filter_valid_variants(
     variants: List[OptimizedVariant],
     accuracy_threshold: float = MAX_ACCURACY_DROP,
+    max_size_bytes: Optional[int] = None,
 ) -> Tuple[List[OptimizedVariant], List[RejectedVariant]]:
     """
     Filter variants to only those passing all constraints.
@@ -93,6 +94,10 @@ def filter_valid_variants(
         
         # Check accuracy constraint
         is_valid, reason = check_accuracy_constraint(variant, accuracy_threshold)
+
+        if is_valid and max_size_bytes is not None and variant.size_bytes > max_size_bytes:
+            is_valid = False
+            reason = f"Size {variant.size_bytes}B exceeds limit {max_size_bytes}B"
         
         if is_valid:
             valid.append(variant)
@@ -185,6 +190,7 @@ def select_best_variant(
     variants: List[OptimizedVariant],
     input_hash: str,
     accuracy_threshold: float = MAX_ACCURACY_DROP,
+    max_size_bytes: Optional[int] = None,
 ) -> SelectedVariant:
     """
     Select the best variant using ALO rules.
@@ -194,7 +200,7 @@ def select_best_variant(
     Args:
         variants: List of generated variants.
         input_hash: Hash of original input model.
-        accuracy_threshold: Maximum allowed accuracy drop (default 2%).
+        accuracy_threshold: Maximum allowed accuracy drop (default 1%).
     
     Returns:
         SelectedVariant with complete decision trace.
@@ -215,7 +221,7 @@ def select_best_variant(
     logger.info(f"ALO: Selecting from {len(variants)} variants")
     
     # Step 1: Filter to valid variants
-    valid_variants, rejected = filter_valid_variants(variants, accuracy_threshold)
+    valid_variants, rejected = filter_valid_variants(variants, accuracy_threshold, max_size_bytes=max_size_bytes)
     
     logger.info(f"ALO: {len(valid_variants)} valid, {len(rejected)} rejected")
     

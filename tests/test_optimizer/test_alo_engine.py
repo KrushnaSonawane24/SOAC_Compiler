@@ -149,9 +149,9 @@ class TestBestVariantSelection:
         assert trace.timestamp is not None
         assert trace.input_hash == "test_hash"
         assert trace.variants_generated == 4
-        assert trace.variants_valid == 4
+        assert trace.variants_valid == 3
         assert trace.final_selection == result.variant.variant_id
-        assert len(trace.ranking) == 4
+        assert len(trace.ranking) == 3
         assert len(trace.decision_rules) > 0
     
     def test_decision_trace_serializable(self, all_valid_variants):

@@ -8,12 +8,14 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jobsApi, type CreateJobRequest } from '../api/jobs';
 import { Navbar } from '../components/Navbar';
+import { useMascot } from '../mascot/MascotContext';
 
 type Policy = 'balanced' | 'accuracy_first' | 'latency_first' | 'mobile_first';
 
 export const NewJobPage: React.FC = () => {
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { setState: setMascotState } = useMascot();
 
     const [file, setFile] = useState<File | null>(null);
     const [policy, setPolicy] = useState<Policy>('balanced');
@@ -25,6 +27,7 @@ export const NewJobPage: React.FC = () => {
         if (e.target.files && e.target.files[0]) {
             setFile(e.target.files[0]);
             setError(null);
+            setMascotState({ mode: 'thinking', message: 'ready when you are' });
         }
     };
 
@@ -50,6 +53,7 @@ export const NewJobPage: React.FC = () => {
 
         setIsSubmitting(true);
         setError(null);
+        setMascotState({ mode: 'thinking', message: 'starting a new job…' });
 
         try {
             const config: CreateJobRequest = {
@@ -67,35 +71,36 @@ export const NewJobPage: React.FC = () => {
             const detail = maybeAxiosError.response?.data?.detail;
             setError(typeof detail === 'string' ? detail : 'Failed to create job');
             setIsSubmitting(false);
+            setMascotState({ mode: 'failure', message: 'could not start the job' });
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-gray-100 font-sans selection:bg-indigo-500 selection:text-white">
+        <div className="min-h-screen selection:bg-[color:var(--soac-primary)] selection:text-white">
             <Navbar />
 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="text-center mb-12">
-                    <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl mb-4">
-                        Optimize Your Model
+                    <h1 className="text-4xl font-semibold tracking-tight text-[color:var(--soac-text)] sm:text-5xl mb-3">
+                        new job
                     </h1>
-                    <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-                        Upload your ONNX model and let SOAC-v2 generate production-ready artifacts for Edge and Cloud.
+                    <p className="text-base text-[color:var(--soac-muted)] max-w-2xl mx-auto">
+                        upload a model, choose targets and a policy, then start a pipeline run
                     </p>
                 </div>
 
-                <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 overflow-hidden">
+                <div className="card rounded-2xl overflow-hidden p-0">
                     <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-10">
                         
                         {/* 1. Model Upload */}
                         <section>
-                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">1</span>
+                            <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
+                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">1</span>
                                 Upload Model
                             </h2>
                             <div 
                                 className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 ease-in-out cursor-pointer group
-                                    ${file ? 'border-indigo-500 bg-indigo-900/10' : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700/30'}`}
+                                    ${file ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] hover:border-[color:var(--soac-card-border)] hover:bg-[color:var(--soac-card-hover)]'}`}
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <input
@@ -108,76 +113,76 @@ export const NewJobPage: React.FC = () => {
                                 
                                 {file ? (
                                     <div className="space-y-2">
-                                        <div className="mx-auto w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white">
+                                        <div className="mx-auto w-12 h-12 bg-[color:var(--soac-primary)] rounded-full flex items-center justify-center text-white">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                                         </div>
-                                        <p className="text-lg font-medium text-white">{file.name}</p>
-                                        <p className="text-sm text-indigo-300">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                        <p className="text-xs text-gray-400 mt-2">Click to change file</p>
+                                        <p className="text-lg font-medium text-[color:var(--soac-text)]">{file.name}</p>
+                                        <p className="text-sm text-[color:var(--soac-secondary)]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        <p className="text-xs text-[color:var(--soac-muted)] mt-2">click to change file</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        <div className="mx-auto w-12 h-12 bg-gray-700 group-hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
+                                        <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[color:var(--soac-card-hover)] text-[color:var(--soac-muted)] group-hover:text-[color:var(--soac-text)]">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                                         </div>
-                                        <p className="text-lg font-medium text-gray-300">Click to upload or drag and drop</p>
-                                        <p className="text-sm text-gray-500">ONNX, TensorFlow, Keras (Max 500MB)</p>
+                                        <p className="text-lg font-medium text-[color:var(--soac-text)]">click to upload</p>
+                                        <p className="text-sm text-[color:var(--soac-muted)]">ONNX, TensorFlow, Keras (max 500MB)</p>
                                     </div>
                                 )}
                             </div>
                         </section>
 
-                        <div className="border-t border-gray-700"></div>
+                        <div className="border-t border-[color:var(--soac-border)]"></div>
 
                         {/* 2. Deployment Targets */}
                         <section>
-                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">2</span>
+                            <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
+                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">2</span>
                                 Deployment Targets
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div 
                                     className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
-                                        ${targets.includes('android') ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                        ${targets.includes('android') ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
                                     onClick={() => toggleTarget('android')}
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
-                                        ${targets.includes('android') ? 'bg-indigo-600 border-indigo-600' : 'border-gray-500'}`}>
+                                        ${targets.includes('android') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
                                         {targets.includes('android') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-medium text-white">Android (TFLite)</h3>
-                                        <p className="text-sm text-gray-400 mt-1">
-                                            Optimized for mobile edge devices. INT8 quantization with fallback.
+                                        <h3 className="text-lg font-medium text-[color:var(--soac-text)]">Android (TFLite)</h3>
+                                        <p className="text-sm text-[color:var(--soac-muted)] mt-1">
+                                            Optimized for edge devices. INT8 with stability fallback.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div 
                                     className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
-                                        ${targets.includes('gpu') ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                        ${targets.includes('gpu') ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
                                     onClick={() => toggleTarget('gpu')}
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
-                                        ${targets.includes('gpu') ? 'bg-indigo-600 border-indigo-600' : 'border-gray-500'}`}>
+                                        ${targets.includes('gpu') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
                                         {targets.includes('gpu') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-medium text-white">NVIDIA GPU (TensorRT)</h3>
-                                        <p className="text-sm text-gray-400 mt-1">
-                                            High-performance inference for Cloud/PC. FP16/INT8 engines.
+                                        <h3 className="text-lg font-medium text-[color:var(--soac-text)]">NVIDIA GPU (TensorRT)</h3>
+                                        <p className="text-sm text-[color:var(--soac-muted)] mt-1">
+                                            Engine builds for GPU inference. FP16/INT8 where supported.
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </section>
 
-                        <div className="border-t border-gray-700"></div>
+                        <div className="border-t border-[color:var(--soac-border)]"></div>
 
                         {/* 3. Optimization Policy */}
                         <section>
-                            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                                <span className="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">3</span>
+                            <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
+                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">3</span>
                                 Optimization Policy
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -189,17 +194,17 @@ export const NewJobPage: React.FC = () => {
                                     <div 
                                         key={option.id}
                                         className={`relative rounded-xl p-5 border-2 cursor-pointer transition-all duration-200
-                                            ${policy === option.id ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                                            ${policy === option.id ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
                                         onClick={() => setPolicy(option.id as Policy)}
                                     >
                                         <div className="flex items-center justify-between mb-2">
-                                            <h3 className="text-lg font-medium text-white">{option.label}</h3>
+                                            <h3 className="text-lg font-medium text-[color:var(--soac-text)]">{option.label}</h3>
                                             <div className={`w-5 h-5 rounded-full border flex items-center justify-center
-                                                ${policy === option.id ? 'border-indigo-500' : 'border-gray-500'}`}>
-                                                {policy === option.id && <div className="w-3 h-3 rounded-full bg-indigo-500" />}
+                                                ${policy === option.id ? 'border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
+                                                {policy === option.id && <div className="w-3 h-3 rounded-full bg-[color:var(--soac-primary)]" />}
                                             </div>
                                         </div>
-                                        <p className="text-sm text-gray-400">{option.desc}</p>
+                                        <p className="text-sm text-[color:var(--soac-muted)]">{option.desc}</p>
                                     </div>
                                 ))}
                             </div>
@@ -207,7 +212,7 @@ export const NewJobPage: React.FC = () => {
 
                         {/* Error Message */}
                         {error && (
-                            <div className="bg-red-900/50 border border-red-500/50 rounded-lg p-4 text-red-200 flex items-start">
+                            <div className="rounded-lg p-4 flex items-start border border-[color:var(--soac-border)] bg-[color:var(--soac-card)] text-[color:var(--soac-text)]">
                                 <svg className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 <span>{error}</span>
                             </div>
@@ -218,16 +223,15 @@ export const NewJobPage: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={isSubmitting || !file}
-                                className={`w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-sm text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-[1.01]
-                                    ${(isSubmitting || !file) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                                className={`btn-primary w-full py-4 text-lg font-semibold rounded-xl ${(isSubmitting || !file) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
                             >
                                 {isSubmitting ? (
                                     <>
                                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                        Processing...
+                                        starting…
                                     </>
                                 ) : (
-                                    'Start Optimization Job'
+                                    'Start Job'
                                 )}
                             </button>
                         </div>

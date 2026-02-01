@@ -44,9 +44,29 @@ api.interceptors.response.use(
     (response) => response,
     (error: AxiosError) => {
         if (error.response?.status === 401) {
-            // Token expired - clear and redirect
-            setAccessToken(null);
-            window.location.href = '/login';
+            const hadToken = Boolean(accessToken);
+            const pathname = window.location.pathname;
+            const isPublicRoute = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register');
+            const url = typeof error.config?.url === 'string' ? error.config.url : '';
+            const isAuthRoute = url.startsWith('/api/auth/') || url.startsWith('/auth/');
+
+            const data = error.response?.data as unknown;
+            const detail =
+                typeof data === 'object' && data !== null && 'detail' in data
+                    ? (data as { detail?: unknown }).detail
+                    : undefined;
+            const errorCode =
+                typeof detail === 'object' && detail !== null && 'error_code' in detail
+                    ? (detail as { error_code?: unknown }).error_code
+                    : undefined;
+            const isMissingToken = errorCode === 'MISSING_TOKEN';
+
+            if (hadToken) {
+                setAccessToken(null);
+                if (!isPublicRoute) window.location.href = '/login';
+            } else if (!isAuthRoute && !isPublicRoute && !isMissingToken) {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }

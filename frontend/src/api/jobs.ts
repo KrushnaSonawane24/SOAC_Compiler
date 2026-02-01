@@ -67,12 +67,12 @@ export interface CreateJobRequest {
 
 export const jobsApi = {
     list: async (): Promise<Job[]> => {
-        const response = await api.get<{ jobs: Job[] }>('/jobs');
+        const response = await api.get<{ jobs: Job[] }>('/api/jobs');
         return response.data.jobs;
     },
 
     get: async (jobId: string): Promise<Job> => {
-        const response = await api.get<Job>(`/jobs/${jobId}`);
+        const response = await api.get<Job>(`/api/jobs/${jobId}`);
         return response.data;
     },
 
@@ -100,19 +100,19 @@ export const jobsApi = {
             }
         });
 
-        const response = await api.post<Job>('/jobs', formData, {
+        const response = await api.post<Job>('/api/jobs', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;
     },
 
     getLogs: async (jobId: string): Promise<LogEntry[]> => {
-        const response = await api.get<{ logs: LogEntry[] }>(`/jobs/${jobId}/logs`);
+        const response = await api.get<{ logs: LogEntry[] }>(`/api/jobs/${jobId}/logs`);
         return response.data.logs;
     },
 
     downloadArtifact: async (jobId: string, artifactId: string): Promise<Blob> => {
-        const response = await api.get(`/jobs/${jobId}/artifacts/${artifactId}`, {
+        const response = await api.get(`/api/jobs/${jobId}/artifacts/${artifactId}`, {
             responseType: 'blob',
         });
         return response.data;

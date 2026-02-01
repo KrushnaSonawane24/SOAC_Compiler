@@ -1,0 +1,122 @@
+.landing-page {
+  min-height: 100vh;
+}
+
+.hero {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  text-align: center;
+}
+
+.hero-title-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.hero h1 {
+  font-family: 'Syncopate', sans-serif;
+  font-size: 13vw;
+  line-height: 0.8;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--brutal-fg);
+  position: relative;
+  z-index: 10;
+  mix-blend-mode: color-dodge;
+  transform: translateZ(50px);
+}
+
+.hero h1 .word {
+  display: inline-block;
+}
+
+.hero h1 .char {
+  display: inline-block;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.hero h1:hover .char {
+  color: var(--brutal-accent);
+  -webkit-text-stroke: 0px;
+  transform: translateZ(20px);
+}
+
+.tape-wrapper {
+  position: absolute;
+  bottom: 5vh;
+  left: -10%;
+  width: 120%;
+  background: var(--brutal-accent);
+  color: #000;
+  transform: rotate(-2deg);
+  padding: 10px 0;
+  border-top: 3px solid #000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.tape-text {
+  font-family: 'Syncopate', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: tapeScroll 10s linear infinite;
+}
+
+@keyframes tapeScroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.section-dark {
+  min-height: 80vh;
+  background: #080808;
+  display: flex;
+  align-items: center;
+  padding: 10vw;
+  border-top: 1px solid #222;
+}
+
+.section-right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.big-text {
+  font-size: 5vw;
+  line-height: 1.1;
+  font-weight: 300;
+  color: #444;
+}
+
+.big-text span {
+  color: #fff;
+  font-weight: 700;
+}
+
+.brutal-footer {
+  height: 40vh;
+  background: var(--brutal-fg);
+  color: var(--brutal-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.brutal-footer-title {
+  font-family: 'Syncopate', sans-serif;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .tape-text {
+    font-size: 1.25rem;
+  }
+}

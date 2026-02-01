@@ -4,14 +4,13 @@
 
 import React from 'react';
 import {
-    BarChart,
-    Bar,
+    LineChart,
+    Line,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Cell,
 } from 'recharts';
 
 interface LatencyChartProps {
@@ -22,23 +21,36 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ data }) => {
     return (
         <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="name" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" label={{ value: 'ms', position: 'insideLeft', fill: '#9CA3AF' }} />
+                <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(224, 224, 224, 0.14)" />
+                    <XAxis dataKey="name" stroke="rgba(224, 224, 224, 0.62)" />
+                    <YAxis stroke="rgba(224, 224, 224, 0.62)" label={{ value: 'ms', position: 'insideLeft', fill: 'rgba(224, 224, 224, 0.62)' }} />
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151' }}
-                        labelStyle={{ color: '#F9FAFB' }}
+                        contentStyle={{ backgroundColor: 'rgba(5, 5, 5, 0.92)', border: '1px solid rgba(224, 224, 224, 0.18)' }}
+                        labelStyle={{ color: 'rgba(224, 224, 224, 0.96)' }}
                     />
-                    <Bar dataKey="latency" radius={[4, 4, 0, 0]}>
-                        {data.map((entry, index) => (
-                            <Cell
-                                key={`cell-${index}`}
-                                fill={entry.selected ? '#10B981' : '#6366F1'}
-                            />
-                        ))}
-                    </Bar>
-                </BarChart>
+                    <Line
+                        type="monotone"
+                        dataKey="latency"
+                        stroke="var(--soac-primary)"
+                        strokeWidth={2.5}
+                        dot={(props) => {
+                            const payload = props.payload as { selected?: boolean } | undefined;
+                            const isSelected = Boolean(payload?.selected);
+                            return (
+                                <circle
+                                    cx={props.cx}
+                                    cy={props.cy}
+                                    r={isSelected ? 4.5 : 3}
+                                    fill={isSelected ? 'var(--soac-primary)' : 'rgba(224, 224, 224, 0.38)'}
+                                    stroke="rgba(0, 0, 0, 0.65)"
+                                    strokeWidth={isSelected ? 1.25 : 1}
+                                />
+                            );
+                        }}
+                        activeDot={{ r: 5, fill: 'var(--soac-primary)', stroke: 'rgba(0, 0, 0, 0.65)', strokeWidth: 1.25 }}
+                    />
+                </LineChart>
             </ResponsiveContainer>
         </div>
     );

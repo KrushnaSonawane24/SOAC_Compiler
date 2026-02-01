@@ -7,13 +7,14 @@ import { AuthProvider } from './auth/AuthContext';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { RegisteredPage } from './pages/RegisteredPage';
+import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewJobPage } from './pages/NewJobPage';
 import { JobDetailPage } from './pages/JobDetailPage';
 import { ThemeProvider } from './theme/ThemeContext';
-import { AmbientBackground } from './components/AmbientBackground';
 import { MascotProvider } from './mascot/MascotContext';
-import { SoacChan } from './components/SoacChan';
+import { BrutalShell } from './brutal/BrutalShell';
 import './index.css';
 
 function App() {
@@ -22,43 +23,45 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <MascotProvider>
-            <div className="relative min-h-screen">
-              <AmbientBackground />
-              <div className="relative z-10 min-h-screen">
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
+            <BrutalShell>
+              <div className="relative min-h-screen">
+                <div className="relative z-10 min-h-screen">
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/registered" element={<RegisteredPage />} />
 
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <DashboardPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/new"
-                    element={
-                      <ProtectedRoute>
-                        <NewJobPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/jobs/:jobId"
-                    element={
-                      <ProtectedRoute>
-                        <JobDetailPage />
-                      </ProtectedRoute>
-                    }
-                  />
+                    <Route path="/" element={<LandingPage />} />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <DashboardPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/new"
+                      element={
+                        <ProtectedRoute>
+                          <NewJobPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/jobs/:jobId"
+                      element={
+                        <ProtectedRoute>
+                          <JobDetailPage />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </div>
               </div>
-              <SoacChan />
-            </div>
+            </BrutalShell>
           </MascotProvider>
         </BrowserRouter>
       </AuthProvider>

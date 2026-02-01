@@ -25,7 +25,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState
     const isFailed = currentState === 'failed';
 
     return (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between overflow-x-auto gap-4">
             {STAGES.map((stage, index) => {
                 const isCompleted = currentIndex > index;
                 const isCurrent = currentState === stage;
@@ -46,17 +46,17 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState
 
                 return (
                     <React.Fragment key={stage}>
-                        <div className="flex flex-col items-center">
+                        <div className="flex flex-col items-center min-w-16">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center ${isCurrent && !isFailed ? 'animate-pulse' : ''}`}
                                 style={{ backgroundColor: dotColor }}
                             >
                                 {isCompleted ? (
-                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg className="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                     </svg>
                                 ) : (
-                                    <span className="text-white text-xs">{index + 1}</span>
+                                    <span className="text-black text-xs">{index + 1}</span>
                                 )}
                             </div>
                             <span className="mt-2 text-xs capitalize" style={{ color: labelColor }}>

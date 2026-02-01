@@ -8,8 +8,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { jobsApi, type Job } from '../api/jobs';
 import { StatusBadge } from '../components/StatusBadge';
-import { Navbar } from '../components/Navbar';
 import { useMascot } from '../mascot/MascotContext';
+import { BrutalNav } from '../brutal/BrutalNav';
 
 export const DashboardPage: React.FC = () => {
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -53,15 +53,15 @@ export const DashboardPage: React.FC = () => {
 
     return (
         <div className="min-h-screen">
-            <Navbar />
+            <BrutalNav variant="app" />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="brutal-scroll max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-32">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--soac-text)]">Jobs</h1>
                         <p className="mt-1 text-sm text-[color:var(--soac-muted)]">recent runs and active work</p>
                     </div>
-                    <Link to="/new" className="btn-primary">
+                    <Link to="/new" className="btn-primary magnetic">
                         + New Job
                     </Link>
                 </div>
@@ -80,7 +80,7 @@ export const DashboardPage: React.FC = () => {
                         </div>
                     </div>
                 ) : jobs.length === 0 ? (
-                    <div className="card text-center py-12">
+                    <div className="card text-center py-12 brutal-panel">
                         <div className="text-[color:var(--soac-muted)] text-lg mb-2">no jobs yet</div>
                         <div className="text-[color:var(--soac-muted)] text-sm mb-4">upload a model to start a run</div>
                         <Link to="/new" className="btn-primary">
@@ -88,48 +88,49 @@ export const DashboardPage: React.FC = () => {
                         </Link>
                     </div>
                 ) : (
-                    <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-[color:var(--soac-border)]">
-                            <thead className="bg-[color:var(--soac-card-hover)]">
+                    <div className="brutal-panel rounded-xl overflow-hidden">
+                        <table className="brutal-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
+                                    <th>
                                         Job ID
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
+                                    <th>
                                         Model
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
+                                    <th>
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
+                                    <th>
                                         Created
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-[color:var(--soac-muted)] uppercase tracking-wider">
+                                    <th style={{ textAlign: 'right' }}>
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[color:var(--soac-border)]">
+                            <tbody>
                                 {jobs.map((job) => (
-                                    <tr key={job.job_id} className="transition-colors hover:bg-[color:var(--soac-card-hover)]">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <code className="text-[color:var(--soac-secondary)] text-sm">{job.job_id}</code>
+                                    <tr key={job.job_id}>
+                                        <td style={{ whiteSpace: 'nowrap' }}>
+                                            <span className="job-id">{job.job_id}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-[color:var(--soac-text)]">
+                                        <td style={{ whiteSpace: 'nowrap' }}>
                                             {job.original_filename || 'model.onnx'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td style={{ whiteSpace: 'nowrap' }}>
                                             <StatusBadge status={job.state} />
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-[color:var(--soac-muted)] text-sm">
-                                            {formatDate(job.created_at)}
+                                        <td style={{ whiteSpace: 'nowrap' }}>
+                                            <span className="job-meta">{formatDate(job.created_at)}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                             <Link
                                                 to={`/jobs/${job.job_id}`}
-                                                className="text-[color:var(--soac-secondary)] hover:text-[color:var(--soac-text)]"
+                                                className="nav-link magnetic"
+                                                data-text="VIEW"
                                             >
-                                                View Details →
+                                                VIEW →
                                             </Link>
                                         </td>
                                     </tr>

@@ -26,8 +26,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 
     return (
         <span
-            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-            style={{ backgroundColor: config.color }}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+            style={{
+                border: `1px solid ${config.color}`,
+                color: config.color,
+                backgroundColor: 'transparent',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+            }}
         >
             {config.label}
         </span>

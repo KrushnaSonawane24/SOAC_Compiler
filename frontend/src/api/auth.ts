@@ -29,20 +29,20 @@ export interface User {
 
 export const authApi = {
     login: async (data: LoginRequest): Promise<AuthResponse> => {
-        const response = await api.post<AuthResponse>('/auth/login', data);
+        const response = await api.post<AuthResponse>('/api/auth/login', data);
         return response.data;
     },
 
     register: async (data: RegisterRequest): Promise<AuthResponse> => {
-        const response = await api.post<AuthResponse>('/auth/register', data);
+        const response = await api.post<AuthResponse>('/api/auth/register', data);
         return response.data;
     },
 
     getMe: async (): Promise<User> => {
-        const response = await api.get<User>('/auth/me');
+        const response = await api.get<User>('/api/auth/me');
         return response.data;
     },
 
-    getGitHubLoginUrl: () => '/auth/github/login',
-    getGoogleLoginUrl: () => '/auth/google/login',
+    getGitHubLoginUrl: () => '/api/auth/github/login',
+    getGoogleLoginUrl: () => '/api/auth/google/login',
 };

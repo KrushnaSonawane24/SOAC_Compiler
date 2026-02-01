@@ -7,8 +7,8 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jobsApi, type CreateJobRequest } from '../api/jobs';
-import { Navbar } from '../components/Navbar';
 import { useMascot } from '../mascot/MascotContext';
+import { BrutalNav } from '../brutal/BrutalNav';
 
 type Policy = 'balanced' | 'accuracy_first' | 'latency_first' | 'mobile_first';
 
@@ -76,10 +76,10 @@ export const NewJobPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen selection:bg-[color:var(--soac-primary)] selection:text-white">
-            <Navbar />
+        <div className="min-h-screen selection:bg-[color:var(--soac-primary)] selection:text-black">
+            <BrutalNav variant="app" />
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <main className="brutal-scroll max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-32">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-semibold tracking-tight text-[color:var(--soac-text)] sm:text-5xl mb-3">
                         new job
@@ -89,13 +89,13 @@ export const NewJobPage: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="card rounded-2xl overflow-hidden p-0">
+                <div className="brutal-panel rounded-2xl overflow-hidden p-0">
                     <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-10">
                         
                         {/* 1. Model Upload */}
                         <section>
                             <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
-                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">1</span>
+                                <span className="step-badge mr-3">1</span>
                                 Upload Model
                             </h2>
                             <div 
@@ -113,7 +113,7 @@ export const NewJobPage: React.FC = () => {
                                 
                                 {file ? (
                                     <div className="space-y-2">
-                                        <div className="mx-auto w-12 h-12 bg-[color:var(--soac-primary)] rounded-full flex items-center justify-center text-white">
+                                        <div className="mx-auto w-12 h-12 bg-[color:var(--soac-primary)] rounded-full flex items-center justify-center text-black">
                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                                         </div>
                                         <p className="text-lg font-medium text-[color:var(--soac-text)]">{file.name}</p>
@@ -137,7 +137,7 @@ export const NewJobPage: React.FC = () => {
                         {/* 2. Deployment Targets */}
                         <section>
                             <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
-                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">2</span>
+                                <span className="step-badge mr-3">2</span>
                                 Deployment Targets
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -148,7 +148,7 @@ export const NewJobPage: React.FC = () => {
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
                                         ${targets.includes('android') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
-                                        {targets.includes('android') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                        {targets.includes('android') && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-[color:var(--soac-text)]">Android (TFLite)</h3>
@@ -165,7 +165,7 @@ export const NewJobPage: React.FC = () => {
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
                                         ${targets.includes('gpu') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
-                                        {targets.includes('gpu') && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                        {targets.includes('gpu') && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-[color:var(--soac-text)]">NVIDIA GPU (TensorRT)</h3>
@@ -182,7 +182,7 @@ export const NewJobPage: React.FC = () => {
                         {/* 3. Optimization Policy */}
                         <section>
                             <h2 className="text-2xl font-semibold text-[color:var(--soac-text)] mb-6 flex items-center">
-                                <span className="bg-[color:var(--soac-primary)] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm mr-3">3</span>
+                                <span className="step-badge mr-3">3</span>
                                 Optimization Policy
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -223,16 +223,9 @@ export const NewJobPage: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={isSubmitting || !file}
-                                className={`btn-primary w-full py-4 text-lg font-semibold rounded-xl ${(isSubmitting || !file) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                                className={`cta-btn magnetic w-full justify-center ${(isSubmitting || !file) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
                             >
-                                {isSubmitting ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                        starting…
-                                    </>
-                                ) : (
-                                    'Start Job'
-                                )}
+                                <span>{isSubmitting ? 'starting…' : 'Start Job'}</span>
                             </button>
                         </div>
 

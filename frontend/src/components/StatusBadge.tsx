@@ -11,6 +11,7 @@ interface StatusBadgeProps {
 
 const statusConfig: Record<JobState, { color: string; label: string }> = {
     created: { color: 'var(--soac-stage-created)', label: 'Created' },
+    normalizing: { color: 'var(--soac-stage-normalizing)', label: 'Normalizing' },
     validating: { color: 'var(--soac-stage-validating)', label: 'Validating' },
     canonicalizing: { color: 'var(--soac-stage-canonicalizing)', label: 'Canonicalizing' },
     optimizing: { color: 'var(--soac-stage-optimizing)', label: 'Optimizing' },

@@ -6,6 +6,7 @@ import api from './client';
 
 export type JobState =
     | 'created'
+    | 'normalizing'
     | 'validating'
     | 'canonicalizing'
     | 'optimizing'
@@ -65,6 +66,11 @@ export interface CreateJobRequest {
     simulate_memory_exceed?: number;
 }
 
+export interface JobCreated {
+    job_id: string;
+    state: JobState;
+}
+
 export const jobsApi = {
     list: async (): Promise<Job[]> => {
         const response = await api.get<{ jobs: Job[] }>('/api/jobs');
@@ -76,7 +82,7 @@ export const jobsApi = {
         return response.data;
     },
 
-    create: async (file: File, config: CreateJobRequest): Promise<Job> => {
+    create: async (file: File, config: CreateJobRequest): Promise<JobCreated> => {
         const formData = new FormData();
         formData.append('file', file);
 
@@ -100,9 +106,14 @@ export const jobsApi = {
             }
         });
 
-        const response = await api.post<Job>('/api/jobs', formData, {
+        const response = await api.post<JobCreated>('/api/jobs', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
+        return response.data;
+    },
+
+    retry: async (jobId: string): Promise<JobCreated> => {
+        const response = await api.post<JobCreated>(`/api/jobs/${jobId}/retry`);
         return response.data;
     },
 

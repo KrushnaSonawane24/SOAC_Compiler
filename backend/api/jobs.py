@@ -80,6 +80,26 @@ async def create_job(
     )
 
 
+@router.post("/{job_id}/retry", response_model=JobCreatedResponse, status_code=201)
+async def retry_job(
+    job_id: str,
+    user_id: str = Depends(get_current_user),
+    manager: JobManager = Depends(get_manager),
+):
+    try:
+        job = await manager.retry_job(job_id, user_id)
+        return JobCreatedResponse(
+            job_id=job.job_id,
+            state=JobStateEnum(job.state.value),
+        )
+    except JobNotFoundError:
+        raise NotFoundError("Job", job_id)
+    except UnauthorizedAccessError:
+        raise ForbiddenError("Not authorized to access this job")
+    except Exception:
+        raise ForbiddenError("Retry is only available for failed jobs")
+
+
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
     state: Optional[JobStateEnum] = Query(None),

@@ -5,10 +5,12 @@ SOAC Auth Router
 Authentication endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+import os
+from urllib.parse import quote, urlparse
 
 from .models import User, AuthProvider
 from .password import hash_password
@@ -30,6 +32,19 @@ from .oauth import (
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _public_callback_uri(request: Request, endpoint_name: str) -> str:
+    public_api = os.getenv("SOAC_PUBLIC_API_URL", "").rstrip("/")
+    if public_api:
+        path = urlparse(str(request.url_for(endpoint_name))).path
+        return f"{public_api}{path}"
+    return str(request.url_for(endpoint_name))
+
+
+def _frontend_success_redirect(token: str) -> str:
+    frontend = os.getenv("SOAC_FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    return f"{frontend}/dashboard?token={quote(token)}"
 
 
 # ============================================================================
@@ -157,7 +172,6 @@ async def get_me(
 @router.get("/github/login")
 async def github_login(
     request: Request,
-    redirect_uri: Optional[str] = Query(None),
 ):
     """
     Start GitHub OAuth flow.
@@ -165,13 +179,15 @@ async def github_login(
     Redirects to GitHub authorization page.
     """
     provider = get_github_provider()
+    if not getattr(provider, "client_id", ""):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Missing GITHUB_CLIENT_ID", "error_code": "OAUTH_CONFIG_MISSING"},
+        )
     state = generate_oauth_state()
-    
-    # Use provided redirect URI or construct from request
-    callback_uri = redirect_uri or str(request.url_for("github_callback"))
-    
+
+    callback_uri = _public_callback_uri(request, "github_callback")
     auth_url = provider.get_authorization_url(state, callback_uri)
-    
     return RedirectResponse(auth_url)
 
 
@@ -196,7 +212,7 @@ async def github_callback(
     
     try:
         provider = get_github_provider()
-        callback_uri = str(request.url_for("github_callback"))
+        callback_uri = _public_callback_uri(request, "github_callback")
         
         # Exchange code for token
         access_token = await provider.exchange_code(code, callback_uri)
@@ -215,13 +231,8 @@ async def github_callback(
         
         # Issue SOAC JWT
         token = create_access_token(user)
-        
-        # Return token (frontend will capture this)
-        return TokenResponse(
-            access_token=token,
-            user_id=user.user_id,
-            email=user.email,
-        )
+
+        return RedirectResponse(_frontend_success_redirect(token))
     
     except ValueError as e:
         raise HTTPException(
@@ -237,7 +248,6 @@ async def github_callback(
 @router.get("/google/login")
 async def google_login(
     request: Request,
-    redirect_uri: Optional[str] = Query(None),
 ):
     """
     Start Google OAuth flow.
@@ -245,12 +255,15 @@ async def google_login(
     Redirects to Google authorization page.
     """
     provider = get_google_provider()
+    if not getattr(provider, "client_id", ""):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": "Missing GOOGLE_CLIENT_ID", "error_code": "OAUTH_CONFIG_MISSING"},
+        )
     state = generate_oauth_state()
-    
-    callback_uri = redirect_uri or str(request.url_for("google_callback"))
-    
+
+    callback_uri = _public_callback_uri(request, "google_callback")
     auth_url = provider.get_authorization_url(state, callback_uri)
-    
     return RedirectResponse(auth_url)
 
 
@@ -274,7 +287,7 @@ async def google_callback(
     
     try:
         provider = get_google_provider()
-        callback_uri = str(request.url_for("google_callback"))
+        callback_uri = _public_callback_uri(request, "google_callback")
         
         access_token = await provider.exchange_code(code, callback_uri)
         user_info = await provider.get_user_info(access_token)
@@ -288,12 +301,8 @@ async def google_callback(
         )
         
         token = create_access_token(user)
-        
-        return TokenResponse(
-            access_token=token,
-            user_id=user.user_id,
-            email=user.email,
-        )
+
+        return RedirectResponse(_frontend_success_redirect(token))
     
     except ValueError as e:
         raise HTTPException(

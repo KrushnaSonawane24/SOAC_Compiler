@@ -11,7 +11,8 @@ from .exceptions import PipelineStage, PipelineError
 
 # Valid state transitions
 VALID_TRANSITIONS: dict[PipelineStage, Set[PipelineStage]] = {
-    PipelineStage.PENDING: {PipelineStage.VALIDATING, PipelineStage.FAILED, PipelineStage.CANCELLED},
+    PipelineStage.PENDING: {PipelineStage.NORMALIZING, PipelineStage.FAILED, PipelineStage.CANCELLED},
+    PipelineStage.NORMALIZING: {PipelineStage.VALIDATING, PipelineStage.FAILED, PipelineStage.CANCELLED},
     PipelineStage.VALIDATING: {PipelineStage.CANONICALIZING, PipelineStage.FAILED, PipelineStage.CANCELLED},
     PipelineStage.CANONICALIZING: {PipelineStage.OPTIMIZING, PipelineStage.FAILED, PipelineStage.CANCELLED},
     PipelineStage.OPTIMIZING: {PipelineStage.BENCHMARKING, PipelineStage.FAILED, PipelineStage.CANCELLED},
@@ -59,6 +60,7 @@ def get_next_stage(current: PipelineStage) -> PipelineStage:
     """Get the next stage in normal flow."""
     normal_flow = [
         PipelineStage.PENDING,
+        PipelineStage.NORMALIZING,
         PipelineStage.VALIDATING,
         PipelineStage.CANONICALIZING,
         PipelineStage.OPTIMIZING,
@@ -82,6 +84,7 @@ def get_stage_order() -> list[PipelineStage]:
     """Get ordered list of pipeline stages."""
     return [
         PipelineStage.PENDING,
+        PipelineStage.NORMALIZING,
         PipelineStage.VALIDATING,
         PipelineStage.CANONICALIZING,
         PipelineStage.OPTIMIZING,

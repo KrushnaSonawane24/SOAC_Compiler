@@ -8,13 +8,30 @@ Google OAuth provider implementation.
 import os
 from typing import Optional
 import httpx
+from urllib.parse import urlencode
 
 from .provider_base import OAuthProvider, OAuthUserInfo
 
 
 # Configuration (use environment variables)
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+def _resolved_google_client_id() -> str:
+    value = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    if value:
+        return value
+    fallback = os.getenv("GITHUB_CLIENT_ID", "").strip()
+    if fallback.endswith(".apps.googleusercontent.com"):
+        return fallback
+    return ""
+
+
+def _resolved_google_client_secret() -> str:
+    value = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    if value:
+        return value
+    fallback = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
+    if fallback.startswith("GOCSPX-"):
+        return fallback
+    return ""
 
 GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -29,8 +46,8 @@ class GoogleProvider(OAuthProvider):
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
     ):
-        self.client_id = client_id or GOOGLE_CLIENT_ID
-        self.client_secret = client_secret or GOOGLE_CLIENT_SECRET
+        self.client_id = (client_id or _resolved_google_client_id()).strip()
+        self.client_secret = (client_secret or _resolved_google_client_secret()).strip()
     
     @property
     def name(self) -> str:
@@ -47,7 +64,7 @@ class GoogleProvider(OAuthProvider):
             "access_type": "offline",
             "prompt": "consent",
         }
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{GOOGLE_AUTHORIZE_URL}?{query}"
     
     async def exchange_code(self, code: str, redirect_uri: str) -> str:
@@ -97,6 +114,6 @@ _google_provider: Optional[GoogleProvider] = None
 def get_google_provider() -> GoogleProvider:
     """Get Google provider instance."""
     global _google_provider
-    if _google_provider is None:
+    if _google_provider is None or not _google_provider.client_id:
         _google_provider = GoogleProvider()
     return _google_provider

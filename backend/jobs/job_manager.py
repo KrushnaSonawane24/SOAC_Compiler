@@ -75,6 +75,21 @@ class JobManager:
         )
         
         return job
+
+    async def retry_job(self, job_id: str, user_id: str) -> Job:
+        job = self.get_job(job_id, user_id)
+        if job.state != JobState.FAILED:
+            raise InvalidStateTransition(job_id, job.state.value, JobState.CREATED.value)
+        if not job.input_path or not job.input_path.exists():
+            raise JobNotFoundError(job_id)
+        user_config = job.metadata.get("user_config", {}) if isinstance(job.metadata, dict) else {}
+        return await self.create_job(
+            user_id=user_id,
+            original_filename=job.original_filename,
+            file_size_bytes=job.file_size_bytes,
+            input_path=job.input_path,
+            config=user_config,
+        )
     
     def _run_job(self, job_id: str) -> None:
         """Run job in background thread."""

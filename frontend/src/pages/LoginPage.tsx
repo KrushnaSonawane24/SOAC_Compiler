@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { authApi } from '../api/auth';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -92,6 +93,17 @@ export const LoginPage: React.FC = () => {
 
             <button type="submit" className="cta-btn magnetic" disabled={isLoading}>
               <span>{isLoading ? 'ACCESSING…' : 'ACCESS SOAC'}</span>
+            </button>
+
+            <button
+              type="button"
+              className="cta-btn cta-btn--ghost magnetic"
+              style={{ marginTop: '0.75rem' }}
+              onClick={() => {
+                window.location.href = authApi.getGoogleLoginUrl();
+              }}
+            >
+              <span>CONTINUE WITH GOOGLE</span>
             </button>
 
             <p className="auth-link">

@@ -142,7 +142,7 @@ def create_decision_trace(
         final_selection=selected_id,
         accuracy_threshold=accuracy_threshold,
         decision_rules=[
-            "RULE 1: Reject variants with accuracy_drop > 1%",
+            "RULE 1: Reject variants with accuracy_drop > 2%",
             "RULE 2: Select lowest latency among valid variants",
             "RULE 3: Tie-breaker: smallest file size",
             "RULE 4: Tie-breaker: prefer INT8 > FP16 > Baseline > Pruned",

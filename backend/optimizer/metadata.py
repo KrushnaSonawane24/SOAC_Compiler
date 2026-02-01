@@ -158,8 +158,8 @@ class RankedVariant:
 # CONFIGURATION
 # =============================================================================
 
-MAX_ACCURACY_DROP: float = 0.01
-"""Maximum allowed accuracy drop (1%)."""
+MAX_ACCURACY_DROP: float = 0.02
+"""Maximum allowed accuracy drop (2%)."""
 
 DEFAULT_BASELINE_ACCURACY: float = 1.0
 """Default baseline accuracy when not measured."""

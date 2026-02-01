@@ -5,6 +5,8 @@ SOAC API Package
 FastAPI backend for SOAC.
 """
 
+import os
+from pathlib import Path
 from fastapi import FastAPI
 
 from .jobs import router as jobs_router
@@ -14,8 +16,39 @@ from .uploads import router as uploads_router
 from backend.auth import auth_router
 
 
+def _load_dotenv_if_present() -> None:
+    env_path = Path(__file__).resolve().parents[2] / ".env"
+    if not env_path.exists():
+        return
+    try:
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[len("export ") :].lstrip()
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            if not key:
+                continue
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+            existing = os.environ.get(key)
+            if existing is None or existing == "":
+                os.environ[key] = value
+    except OSError:
+        return
+
+
+_load_dotenv_if_present()
+
+
 def create_app() -> FastAPI:
     """Create FastAPI application."""
+    _load_dotenv_if_present()
     app = FastAPI(
         title="SOAC API",
         description="Self-Optimizing AI Compiler API",

@@ -15,22 +15,11 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 try:
-    import tensorflow as tf
-    TF_AVAILABLE = True
-except ImportError:
-    TF_AVAILABLE = False
-    tf = None
-
-try:
     import onnx
-    import onnx2tf
-    ONNX2TF_AVAILABLE = True
-except ImportError as e:
-    logging.getLogger(__name__).warning(f"onnx2tf import failed: {e}")
-    ONNX2TF_AVAILABLE = False
-except Exception as e:
-    logging.getLogger(__name__).warning(f"onnx2tf import error: {e}")
-    ONNX2TF_AVAILABLE = False
+    ONNX_AVAILABLE = True
+except ImportError:
+    ONNX_AVAILABLE = False
+    onnx = None
 
 from .exceptions import TFLiteConversionError, ToolchainNotAvailable
 from .metadata import DeploymentArtifact, TargetPlatform, ArtifactStatus, create_skipped_artifact
@@ -41,7 +30,17 @@ logger = logging.getLogger(__name__)
 
 def is_tflite_available() -> bool:
     """Check if TFLite conversion is available."""
-    return TF_AVAILABLE and ONNX2TF_AVAILABLE
+    if not ONNX_AVAILABLE:
+        return False
+    try:
+        import tensorflow  # noqa: F401
+    except ImportError:
+        return False
+    try:
+        import onnx2tf  # noqa: F401
+    except Exception:
+        return False
+    return True
 
 
 def _generate_calibration_data(onnx_path: Path, output_dir: Path, num_samples: int = 20) -> Optional[Dict[str, Path]]:

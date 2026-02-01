@@ -28,6 +28,7 @@ from .exceptions import (
     PipelineStage,
     PipelineError,
     ValidationFailedError,
+    NormalizationFailedError,
     CanonicalizationFailedError,
     OptimizationFailedError,
     BenchmarkingFailedError,
@@ -101,7 +102,6 @@ class SOACPipeline:
         start = time.perf_counter()
         
         try:
-            self._ensure_onnx_input()
             self.ctx.log(f"Validating: {self.ctx.input_path}")
             
             # Use validator module
@@ -123,6 +123,25 @@ class SOACPipeline:
             raise
         except Exception as e:
             raise ValidationFailedError(self.ctx.job_id, str(e), e)
+
+    def run_normalization(self) -> bool:
+        """Stage 0: Normalize uploaded model into an ONNX baseline."""
+        self._transition(PipelineStage.NORMALIZING)
+        start = time.perf_counter()
+        try:
+            self._ensure_onnx_input()
+            duration = (time.perf_counter() - start) * 1000
+            self._record_stage(PipelineStage.NORMALIZING, True, duration, "ONNX baseline ready")
+            self.ctx.metadata["normalization"] = {
+                "success": True,
+                "duration_ms": duration,
+                "onnx_path": str(self.ctx.input_path),
+            }
+            return True
+        except NormalizationFailedError:
+            raise
+        except Exception as e:
+            raise NormalizationFailedError(self.ctx.job_id, str(e), e)
 
     def _ensure_onnx_input(self) -> None:
         """Normalize uploaded model into an ONNX file inside the job work directory."""
@@ -149,21 +168,43 @@ class SOACPipeline:
                 shutil.copyfile(input_path, normalized_path)
             self.ctx.input_path = normalized_path
             self.ctx.add_artifact("input_onnx", normalized_path)
+            self.ctx.metadata["normalization_estimate_seconds"] = 0
             return
 
-        self.ctx.log("[LEVEL 1] converting to ONNX baseline")
+        try:
+            size_bytes = 0
+            if input_path.is_file():
+                size_bytes = input_path.stat().st_size
+            elif input_path.is_dir():
+                size_bytes = sum(p.stat().st_size for p in input_path.rglob("*") if p.is_file())
+            size_mb = size_bytes / (1024 * 1024) if size_bytes else 0.0
+            base = 4.0
+            per_mb = 0.35
+            if detected_format in ("savedmodel",):
+                base, per_mb = 8.0, 0.45
+            elif detected_format in ("tflite",):
+                base, per_mb = 5.0, 0.25
+            elif detected_format in ("keras", "keras_h5", "h5", "keras_native"):
+                base, per_mb = 6.0, 0.40
+            est = 0.0 if size_mb == 0.0 else base + (size_mb * per_mb)
+            low = max(1.0, est * 0.7) if est else 0.0
+            high = max(2.0, est * 1.6) if est else 0.0
+            self.ctx.metadata["normalization_estimate_seconds"] = est
+            self.ctx.log(f"[LEVEL 1] converting to ONNX baseline (estimated {low:.0f}-{high:.0f}s)")
+        except Exception:
+            self.ctx.log("[LEVEL 1] converting to ONNX baseline")
 
         try:
             model_format = detect_format(input_path)
         except Exception as e:
-            raise ValidationFailedError(
+            raise NormalizationFailedError(
                 self.ctx.job_id,
                 f"Could not detect model format for {input_path.name}: {e}",
                 e,
             )
 
         if model_format == InputFormat.PYTORCH:
-            raise ValidationFailedError(
+            raise NormalizationFailedError(
                 self.ctx.job_id,
                 "PyTorch .pt/.pth export requires a model signature. Upload ONNX or Keras/SavedModel/TFLite instead.",
             )
@@ -175,9 +216,9 @@ class SOACPipeline:
 
             onnx.save(onnx_model, str(output_path))
         except (UnsupportedFormatError, ConversionError) as e:
-            raise ValidationFailedError(self.ctx.job_id, str(e), e)
+            raise NormalizationFailedError(self.ctx.job_id, str(e), e)
         except Exception as e:
-            raise ValidationFailedError(self.ctx.job_id, f"ONNX export failed: {e}", e)
+            raise NormalizationFailedError(self.ctx.job_id, f"ONNX export failed: {e}", e)
 
         self.ctx.input_path = output_path
         self.ctx.add_artifact("normalized_onnx", output_path)
@@ -522,6 +563,7 @@ class SOACPipeline:
                 self.ctx.metadata["input_hash"] = input_hash
                 
                 # Stage 1: Validation
+                self.run_normalization()
                 self.run_validation()
                 
                 # Stage 2: Canonicalization

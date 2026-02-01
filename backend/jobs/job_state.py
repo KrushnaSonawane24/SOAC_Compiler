@@ -11,7 +11,8 @@ from .models import JobState
 
 # Valid state transitions
 VALID_TRANSITIONS: Dict[JobState, Set[JobState]] = {
-    JobState.CREATED: {JobState.VALIDATING, JobState.FAILED},
+    JobState.CREATED: {JobState.NORMALIZING, JobState.FAILED},
+    JobState.NORMALIZING: {JobState.VALIDATING, JobState.FAILED},
     JobState.VALIDATING: {JobState.CANONICALIZING, JobState.FAILED},
     JobState.CANONICALIZING: {JobState.OPTIMIZING, JobState.FAILED},
     JobState.OPTIMIZING: {JobState.BENCHMARKING, JobState.FAILED},
@@ -37,6 +38,7 @@ def get_next_state(current: JobState) -> JobState:
     """Get next state in normal flow."""
     flow = [
         JobState.CREATED,
+        JobState.NORMALIZING,
         JobState.VALIDATING,
         JobState.CANONICALIZING,
         JobState.OPTIMIZING,
@@ -60,6 +62,7 @@ def get_all_states() -> list[JobState]:
     """Get all states in order."""
     return [
         JobState.CREATED,
+        JobState.NORMALIZING,
         JobState.VALIDATING,
         JobState.CANONICALIZING,
         JobState.OPTIMIZING,

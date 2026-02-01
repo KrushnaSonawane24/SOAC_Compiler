@@ -19,6 +19,7 @@
   --soac-shadow: rgba(0, 0, 0, 0.45);
   --soac-display-font: 'Space Grotesk', Inter, system-ui, -apple-system, sans-serif;
   --soac-stage-created: color-mix(in srgb, var(--soac-muted), transparent 35%);
+  --soac-stage-normalizing: color-mix(in srgb, var(--soac-secondary), white 24%);
   --soac-stage-validating: var(--soac-secondary);
   --soac-stage-canonicalizing: color-mix(in srgb, var(--soac-secondary), white 12%);
   --soac-stage-optimizing: var(--soac-primary);
@@ -52,6 +53,7 @@
 
 html {
   height: 100%;
+  scroll-behavior: smooth;
 }
 
 body {

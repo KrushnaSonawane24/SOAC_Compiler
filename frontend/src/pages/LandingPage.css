@@ -1,25 +1,37 @@
 .landing-page {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .hero {
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
   text-align: center;
+  padding: clamp(7rem, 14vh, 10rem) 1.25rem clamp(5rem, 12vh, 8rem);
+  z-index: 1;
+}
+
+.hero-inner {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  justify-content: center;
 }
 
 .hero-title-container {
   perspective: 1000px;
   transform-style: preserve-3d;
+  width: 100%;
 }
 
 .hero h1 {
   font-family: 'Syncopate', sans-serif;
-  font-size: 13vw;
+  font-size: clamp(3.25rem, 13vw, 9rem);
   line-height: 0.8;
   text-transform: uppercase;
   font-weight: 800;
@@ -46,22 +58,37 @@
   transform: translateZ(20px);
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: 2.25rem;
+  z-index: 2;
+}
+
+.hero-actions .cta-btn {
+  justify-content: center;
+}
+
 .tape-wrapper {
   position: absolute;
-  bottom: 5vh;
-  left: -10%;
+  bottom: clamp(1rem, 4vh, 3.5rem);
+  left: 50%;
   width: 120%;
   background: var(--brutal-accent);
   color: #000;
-  transform: rotate(-2deg);
-  padding: 10px 0;
+  transform: translateX(-50%) rotate(-2deg);
+  padding: clamp(0.5rem, 1.2vw, 0.75rem) 0;
   border-top: 3px solid #000;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
 .tape-text {
   font-family: 'Syncopate', sans-serif;
-  font-size: 2rem;
+  font-size: clamp(1rem, 2.2vw, 2rem);
   font-weight: 800;
   white-space: nowrap;
   animation: tapeScroll 10s linear infinite;
@@ -75,11 +102,18 @@
 
 .section-dark {
   min-height: 80vh;
-  background: #080808;
+  background: transparent;
   display: flex;
   align-items: center;
-  padding: 10vw;
-  border-top: 1px solid #222;
+  padding: clamp(2.25rem, 7vw, 6rem) clamp(1.25rem, 6vw, 6rem);
+  border-top: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.section-inner {
+  width: 100%;
+  max-width: 1100px;
 }
 
 .section-right {
@@ -88,10 +122,11 @@
 }
 
 .big-text {
-  font-size: 5vw;
+  font-size: clamp(1.6rem, 5vw, 4rem);
   line-height: 1.1;
   font-weight: 300;
   color: #444;
+  max-width: 60rem;
 }
 
 .big-text span {
@@ -100,23 +135,50 @@
 }
 
 .brutal-footer {
-  height: 40vh;
+  min-height: 40vh;
   background: var(--brutal-fg);
   color: var(--brutal-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  padding: 3rem 1.25rem;
+  position: relative;
+  z-index: 1;
 }
 
 .brutal-footer-title {
   font-family: 'Syncopate', sans-serif;
-  font-size: 3rem;
+  font-size: clamp(2rem, 4vw, 3rem);
   margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {
+  .hero {
+    padding: 6.5rem 1.25rem 5.5rem;
+  }
+
+  .hero h1 {
+    -webkit-text-stroke: 1.5px var(--brutal-fg);
+    line-height: 0.86;
+  }
+
   .tape-text {
     font-size: 1.25rem;
+  }
+
+  .section-dark {
+    min-height: 60vh;
+  }
+
+  .section-right {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .tape-text {
+    animation-duration: 14s;
   }
 }

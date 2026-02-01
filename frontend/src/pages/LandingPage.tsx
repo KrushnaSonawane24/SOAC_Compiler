@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { BrutalNav } from '../brutal/BrutalNav';
+import { authApi } from '../api/auth';
 import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
@@ -11,7 +12,8 @@ export const LandingPage: React.FC = () => {
 
       <div className="brutal-scroll">
         <section className="hero">
-          <div className="hero-title-container">
+          <div className="hero-inner">
+            <div className="hero-title-container">
             <h1>
               {heroWords.map((word, idx) => (
                 <React.Fragment key={word}>
@@ -26,6 +28,16 @@ export const LandingPage: React.FC = () => {
                 </React.Fragment>
               ))}
             </h1>
+            </div>
+          </div>
+
+          <div className="hero-actions">
+            <a className="cta-btn magnetic" href="/login">
+              <span>ACCESS</span>
+            </a>
+            <a className="cta-btn cta-btn--ghost magnetic" href={authApi.getGoogleLoginUrl()}>
+              <span>CONTINUE WITH GOOGLE</span>
+            </a>
           </div>
 
           <div className="tape-wrapper">
@@ -37,18 +49,22 @@ export const LandingPage: React.FC = () => {
         </section>
 
         <section className="section-dark">
-          <p className="big-text">
-            UPLOAD <span>ONNX MODELS</span>, RUN <span>POLICY-BASED</span> OPTIMIZATION, GET <span>ARTIFACTS</span> AND{' '}
-            <span>REPORTS</span>. NO GUESSWORK. JUST <span>PURE CODE</span> AND <span>RAW AESTHETICS</span>.
-          </p>
+          <div className="section-inner">
+            <p className="big-text">
+              UPLOAD <span>ONNX MODELS</span>, RUN <span>POLICY-BASED</span> OPTIMIZATION, GET <span>ARTIFACTS</span> AND{' '}
+              <span>REPORTS</span>. NO GUESSWORK. JUST <span>PURE CODE</span> AND <span>RAW AESTHETICS</span>.
+            </p>
+          </div>
         </section>
 
         <section className="section-dark section-right">
-          <p className="big-text">
-            PIPELINE
-            <br />
-            <span>REDEFINED</span>
-          </p>
+          <div className="section-inner">
+            <p className="big-text">
+              PIPELINE
+              <br />
+              <span>REDEFINED</span>
+            </p>
+          </div>
         </section>
 
         <footer className="brutal-footer">

@@ -7,6 +7,7 @@ import { type JobState } from '../api/jobs';
 
 const STAGES: JobState[] = [
     'created',
+    'normalizing',
     'validating',
     'canonicalizing',
     'optimizing',
@@ -23,6 +24,10 @@ interface ProgressTimelineProps {
 export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState }) => {
     const currentIndex = STAGES.indexOf(currentState);
     const isFailed = currentState === 'failed';
+    const labelFor = (stage: JobState) => {
+        if (stage === 'normalizing') return 'normalize';
+        return stage.replace('ing', '');
+    };
 
     return (
         <div className="flex items-center justify-between overflow-x-auto gap-4">
@@ -60,7 +65,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ currentState
                                 )}
                             </div>
                             <span className="mt-2 text-xs capitalize" style={{ color: labelColor }}>
-                                {stage.replace('ing', '')}
+                                {labelFor(stage)}
                             </span>
                         </div>
                         {index < STAGES.length - 1 && (

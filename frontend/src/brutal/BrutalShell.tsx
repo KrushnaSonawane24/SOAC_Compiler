@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 
 type BrutalShellProps = {
   children: React.ReactNode;
@@ -9,12 +8,12 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cursorRef = useRef<HTMLDivElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
-  const location = useLocation();
 
   useEffect(() => {
     const root = rootRef.current;
     const cursor = cursorRef.current;
     if (!root || !cursor) return;
+    const rootEl = root;
 
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
@@ -35,8 +34,8 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     let cursorRaf = 0;
     const animateCursor = () => {
       if (!reduceMotion) {
-        cursorX = lerp(cursorX, mouseX, 0.15);
-        cursorY = lerp(cursorY, mouseY, 0.15);
+        cursorX = lerp(cursorX, mouseX, 0.45);
+        cursorY = lerp(cursorY, mouseY, 0.45);
       } else {
         cursorX = mouseX;
         cursorY = mouseY;
@@ -108,8 +107,8 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
           .join('');
         el.textContent = next;
         if (iter >= original.length) window.clearInterval(id);
-        iter += 1 / 3;
-      }, 30);
+        iter += 1;
+      }, 20);
 
       intervals.set(el, id);
     };
@@ -152,12 +151,6 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
       }
     };
 
-    const onScroll = () => {
-      setNavScrolled(window.scrollY > 100);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-
     const onNavTiltMove = (e: MouseEvent) => {
       if (!isNavScrolled) return;
       const navs = Array.from(document.querySelectorAll<HTMLElement>('.brutal-nav.scrolled'));
@@ -176,10 +169,20 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     let skew = 0;
     let scrollRaf = 0;
     let scrollEl: HTMLElement | null = null;
-    const scrollLoop = () => {
+    let lastScrollActivity = performance.now();
+    function scrollLoop() {
+      scrollRaf = 0;
       if (!reduceMotion) {
-        if (scrollEl && !root.contains(scrollEl)) scrollEl = null;
-        if (!scrollEl) scrollEl = root.querySelector<HTMLElement>('.brutal-scroll');
+        if (scrollEl && !rootEl.contains(scrollEl)) scrollEl = null;
+        if (!scrollEl) scrollEl = rootEl.querySelector<HTMLElement>('.brutal-scroll');
+
+        const disableSkew = window.location.pathname === '/';
+        if (disableSkew) {
+          skew = 0;
+          lastScrollTop = window.scrollY;
+          if (scrollEl) scrollEl.style.transform = 'skewY(0deg)';
+          return;
+        }
 
         const scrollTop = window.scrollY;
         const velocity = scrollTop - lastScrollTop;
@@ -192,10 +195,32 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
         if (scrollEl) {
           scrollEl.style.transform = Math.abs(skew) > 0.01 ? `skewY(${skew}deg)` : 'skewY(0deg)';
         }
+
+        if (Math.abs(velocity) > 0.5 || Math.abs(skew) > 0.05) {
+          lastScrollActivity = performance.now();
+        }
+
+        const shouldStop = Math.abs(skew) < 0.02 && performance.now() - lastScrollActivity > 140;
+        if (shouldStop) {
+          skew = 0;
+          if (scrollEl) scrollEl.style.transform = 'skewY(0deg)';
+          return;
+        }
       }
       scrollRaf = window.requestAnimationFrame(scrollLoop);
+    }
+    function ensureScrollLoop() {
+      lastScrollActivity = performance.now();
+      if (scrollRaf) return;
+      scrollRaf = window.requestAnimationFrame(scrollLoop);
+    }
+
+    const onScroll = () => {
+      setNavScrolled(window.scrollY > 100);
+      ensureScrollLoop();
     };
-    scrollRaf = window.requestAnimationFrame(scrollLoop);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
@@ -221,9 +246,6 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     const canvas = matrixRef.current;
     if (!canvas) return;
 
-    const enabled = location.pathname !== '/';
-    if (!enabled) return;
-
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     if (reduceMotion) return;
 
@@ -231,7 +253,7 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     if (!ctx) return;
 
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const dpr = Math.min(1.5, Math.max(1, window.devicePixelRatio || 1));
+    const dpr = Math.min(1.1, Math.max(1, window.devicePixelRatio || 1));
     const density = 0.52;
 
     let columns = 0;
@@ -239,11 +261,11 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     let speeds: number[] = [];
     let enabledCols: boolean[] = [];
     let raf = 0;
-    let running = true;
     let width = 0;
     let height = 0;
     let fontSize = 16;
     let lastTs = 0;
+    let lastDraw = 0;
 
     const resize = () => {
       width = window.innerWidth;
@@ -264,13 +286,16 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     };
 
     const frame = (ts: number) => {
-      if (!running) return;
-
+      if (ts - lastDraw < 33) {
+        raf = window.requestAnimationFrame(frame);
+        return;
+      }
+      lastDraw = ts;
       const dt = lastTs > 0 ? Math.min(40, ts - lastTs) : 16.67;
       lastTs = ts;
       const step = dt / 16.67;
 
-      ctx.fillStyle = 'rgba(3, 3, 3, 0.14)';
+      ctx.fillStyle = 'rgb(3, 3, 3)';
       ctx.fillRect(0, 0, width, height);
 
       ctx.fillStyle = 'rgba(168, 217, 0, 0.5)';
@@ -294,12 +319,10 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
     };
 
     const onVisibilityChange = () => {
-      running = !document.hidden;
-      if (running) {
-        raf = window.requestAnimationFrame(frame);
-      } else {
-        window.cancelAnimationFrame(raf);
-      }
+      if (document.hidden) return;
+      lastTs = 0;
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(frame);
     };
 
     resize();
@@ -312,13 +335,13 @@ export const BrutalShell: React.FC<BrutalShellProps> = ({ children }) => {
       window.removeEventListener('resize', resize);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [location.pathname]);
+  }, []);
 
   return (
     <div className="brutal-shell" ref={rootRef}>
       <div className="noise" />
       <div className="neural-bg" />
-      {location.pathname !== '/' ? <canvas className="matrix-rain" ref={matrixRef} /> : null}
+      <canvas className="matrix-rain" ref={matrixRef} />
       <div id="cursor" ref={cursorRef} />
       {children}
     </div>

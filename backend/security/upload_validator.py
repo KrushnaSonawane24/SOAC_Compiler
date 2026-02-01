@@ -31,6 +31,7 @@ import shutil
 import tempfile
 import logging
 import atexit
+import zipfile
 from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
@@ -459,6 +460,9 @@ def validate_model_format(file_path: Path, extension: str) -> dict:
         # We don't extract it, just verify it's a valid archive
         return {"format": "keras_native"}
     
+    elif extension == ".tflite":
+        return {"format": "tflite"}
+    
     return {}
 
 
@@ -525,16 +529,19 @@ def secure_save_and_validate_sync(
             with open(file_path, 'wb') as f:
                 f.write(file_content)
             logger.debug(f"File saved to: {file_path}")
+            saved_file_path = file_path
+            model_path = file_path
+            detected_format = extension.lstrip(".")
             
             # Step 6: Validate magic bytes (catches disguised executables)
-            if is_potentially_executable(file_path):
+            if is_potentially_executable(saved_file_path):
                 raise InvalidMagicBytesError(
                     filename=safe_filename,
                     expected_format=extension.lstrip('.'),
                     actual_bytes=file_content[:16]
                 )
             
-            if is_archive(file_path):
+            if is_archive(saved_file_path) and extension not in (".keras", ".zip"):
                 raise InvalidMagicBytesError(
                     filename=safe_filename,
                     expected_format=extension.lstrip('.'),
@@ -543,30 +550,69 @@ def secure_save_and_validate_sync(
             
             # For HDF5 files, validate magic bytes explicitly
             if extension in (".h5", ".hdf5"):
-                validate_magic_bytes(file_path, "hdf5")
+                validate_magic_bytes(saved_file_path, "hdf5")
             
             logger.debug("Magic bytes validated")
             
             # Step 7: Validate MIME type
-            mime_type = validate_mime_type(file_path, extension)
+            mime_type = validate_mime_type(saved_file_path, extension)
             logger.debug(f"MIME type validated: {mime_type}")
+
+            if extension == ".zip":
+                extract_root = job_dir / "saved_model"
+                extract_root.mkdir(exist_ok=True)
+
+                max_members = 5000
+                max_total_uncompressed = 250 * 1024 * 1024
+                total_uncompressed = 0
+
+                with zipfile.ZipFile(saved_file_path, "r") as zf:
+                    infos = zf.infolist()
+                    if len(infos) > max_members:
+                        raise SecurityValidationError("ZIP contains too many files")
+
+                    for info in infos:
+                        name = info.filename
+                        if not name:
+                            continue
+                        if name.startswith(("/", "\\")) or ":" in name:
+                            raise SecurityValidationError("ZIP contains invalid paths")
+                        parts = Path(name).parts
+                        if any(p == ".." for p in parts):
+                            raise SecurityValidationError("ZIP contains path traversal")
+                        total_uncompressed += int(info.file_size or 0)
+                        if total_uncompressed > max_total_uncompressed:
+                            raise SecurityValidationError("ZIP expands beyond allowed size")
+
+                    zf.extractall(extract_root)
+
+                candidates = [extract_root] + [p for p in extract_root.iterdir() if p.is_dir()]
+                savedmodel_dir = next((p for p in candidates if (p / "saved_model.pb").exists()), None)
+                if savedmodel_dir is None:
+                    raise SecurityValidationError("ZIP is not a TensorFlow SavedModel (missing saved_model.pb)")
+
+                model_path = savedmodel_dir
+                detected_format = "savedmodel"
             
             # Step 8: Format-specific validation
-            model_info = validate_model_format(file_path, extension)
+            if detected_format == "savedmodel":
+                model_info = {"format": "savedmodel"}
+            else:
+                model_info = validate_model_format(model_path, extension)
             logger.debug(f"Format-specific validation complete")
             
             # Step 9: Compute SHA-256 hash
-            file_hash = compute_file_hash(file_path)
+            file_hash = compute_file_hash(saved_file_path)
             logger.debug(f"File hash computed: {file_hash[:16]}...")
             
             # Step 10: Build metadata
             timestamp = datetime.now(timezone.utc).isoformat()
             
             metadata = ValidationMetadata(
-                file_path=file_path,
+                file_path=model_path,
                 file_hash=file_hash,
                 file_size=file_size,
-                model_format=extension.lstrip('.'),
+                model_format=detected_format,
                 original_filename=safe_filename,
                 mime_type=mime_type,
                 validation_timestamp=timestamp,

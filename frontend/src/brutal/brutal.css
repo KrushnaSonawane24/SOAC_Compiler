@@ -371,6 +371,22 @@ code {
   align-items: center;
 }
 
+.cta-btn.cta-btn--ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border: 1px solid rgba(224, 224, 224, 0.3);
+}
+
+.cta-btn.cta-btn--ghost:hover {
+  filter: none;
+  background: rgba(255, 255, 255, 0.085);
+  border-color: rgba(224, 224, 224, 0.45);
+}
+
+.cta-btn.cta-btn--ghost:hover span {
+  color: #fff;
+}
+
 .cta-btn span {
   position: relative;
   z-index: 1;

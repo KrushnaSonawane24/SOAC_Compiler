@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { RegisteredPage } from './pages/RegisteredPage';
 import { LandingPage } from './pages/LandingPage';
+import { DocsPage } from './pages/DocsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewJobPage } from './pages/NewJobPage';
 import { JobDetailPage } from './pages/JobDetailPage';
@@ -32,6 +33,7 @@ function App() {
                     <Route path="/registered" element={<RegisteredPage />} />
 
                     <Route path="/" element={<LandingPage />} />
+                    <Route path="/docs" element={<DocsPage />} />
                     <Route
                       path="/dashboard"
                       element={

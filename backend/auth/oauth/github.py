@@ -8,6 +8,7 @@ GitHub OAuth provider implementation.
 import os
 from typing import Optional
 import httpx
+from urllib.parse import urlencode
 
 from .provider_base import OAuthProvider, OAuthUserInfo
 
@@ -45,7 +46,7 @@ class GitHubProvider(OAuthProvider):
             "scope": "user:email",
             "state": state,
         }
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{GITHUB_AUTHORIZE_URL}?{query}"
     
     async def exchange_code(self, code: str, redirect_uri: str) -> str:
@@ -113,6 +114,6 @@ _github_provider: Optional[GitHubProvider] = None
 def get_github_provider() -> GitHubProvider:
     """Get GitHub provider instance."""
     global _github_provider
-    if _github_provider is None:
+    if _github_provider is None or not _github_provider.client_id:
         _github_provider = GitHubProvider()
     return _github_provider

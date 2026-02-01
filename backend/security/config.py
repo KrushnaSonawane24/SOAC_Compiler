@@ -44,6 +44,8 @@ ALLOWED_EXTENSIONS: Final[frozenset[str]] = frozenset({
     ".h5",      # Keras/TensorFlow HDF5 models
     ".hdf5",    # Alternative HDF5 extension
     ".keras",   # Keras native format (TF 2.x)
+    ".tflite",  # TensorFlow Lite
+    ".zip",     # TensorFlow SavedModel (zipped)
 })
 """
 Strictly allowed file extensions.
@@ -71,7 +73,7 @@ BLOCKED_EXTENSIONS: Final[frozenset[str]] = frozenset({
     ".xml",  # XXE attacks
     
     # Archives (zip bombs, nested threats)
-    ".zip", ".rar", ".7z", ".tar", ".gz",
+    ".rar", ".7z", ".tar", ".gz",
     ".bz2", ".xz", ".lz", ".lzma",
     ".cab", ".iso", ".dmg",
     
@@ -173,6 +175,14 @@ ALLOWED_MIME_TYPES: Final[dict[str, frozenset[str]]] = {
     }),
     ".keras": frozenset({
         "application/zip",  # Keras native format is actually a ZIP
+        "application/octet-stream",
+    }),
+    ".tflite": frozenset({
+        "application/octet-stream",
+        "application/x-tflite",
+    }),
+    ".zip": frozenset({
+        "application/zip",
         "application/octet-stream",
     }),
 }

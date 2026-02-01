@@ -13,6 +13,7 @@ from enum import Enum
 class JobStateEnum(str, Enum):
     """Job states for API."""
     created = "created"
+    normalizing = "normalizing"
     validating = "validating"
     canonicalizing = "canonicalizing"
     optimizing = "optimizing"

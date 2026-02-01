@@ -12,6 +12,7 @@ from enum import Enum
 class PipelineStage(str, Enum):
     """Pipeline stages for error tracking."""
     PENDING = "pending"
+    NORMALIZING = "normalizing"
     VALIDATING = "validating"
     CANONICALIZING = "canonicalizing"
     OPTIMIZING = "optimizing"
@@ -66,6 +67,19 @@ class ValidationFailedError(PipelineError):
             stage=PipelineStage.VALIDATING,
             job_id=job_id,
             error_code="VALIDATION_FAILED",
+            original_error=original_error,
+        )
+
+
+class NormalizationFailedError(PipelineError):
+    """Input model normalization (to ONNX baseline) failed."""
+
+    def __init__(self, job_id: str, reason: str, original_error: Optional[Exception] = None):
+        super().__init__(
+            message=reason,
+            stage=PipelineStage.NORMALIZING,
+            job_id=job_id,
+            error_code="NORMALIZATION_FAILED",
             original_error=original_error,
         )
 

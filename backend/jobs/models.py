@@ -16,6 +16,7 @@ import uuid
 class JobState(str, Enum):
     """Job lifecycle states."""
     CREATED = "created"
+    NORMALIZING = "normalizing"
     VALIDATING = "validating"
     CANONICALIZING = "canonicalizing"
     OPTIMIZING = "optimizing"
@@ -29,6 +30,7 @@ class JobState(str, Enum):
 # Progress percentages for each state
 STATE_PROGRESS: Dict[JobState, int] = {
     JobState.CREATED: 0,
+    JobState.NORMALIZING: 5,
     JobState.VALIDATING: 10,
     JobState.CANONICALIZING: 20,
     JobState.OPTIMIZING: 40,

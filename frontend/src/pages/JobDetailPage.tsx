@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { jobsApi, type Job, type LogEntry, type Artifact } from '../api/jobs';
 import { StatusBadge } from '../components/StatusBadge';
 import { ProgressTimeline } from '../components/ProgressTimeline';
@@ -26,7 +26,7 @@ type BenchmarkSummary = {
     accuracy_drop?: number | null;
 };
 
-const STAGE_ORDER = ['created', 'validating', 'canonicalizing', 'optimizing', 'benchmarking', 'selecting', 'deploying', 'completed'] as const;
+const STAGE_ORDER = ['created', 'normalizing', 'validating', 'canonicalizing', 'optimizing', 'benchmarking', 'selecting', 'deploying', 'completed'] as const;
 const stageIndex = (name: unknown) => {
     if (typeof name !== 'string') return Number.MAX_SAFE_INTEGER;
     const idx = STAGE_ORDER.indexOf(name as (typeof STAGE_ORDER)[number]);
@@ -55,11 +55,14 @@ const pickPrimaryArtifact = (params: {
 
 export const JobDetailPage: React.FC = () => {
     const { jobId } = useParams<{ jobId: string }>();
+    const navigate = useNavigate();
     const [job, setJob] = useState<Job | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [retryError, setRetryError] = useState<string | null>(null);
+    const [isRetrying, setIsRetrying] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'artifacts'>('overview');
     const [isLive, setIsLive] = useState(false);
     const lastKnownStateRef = useRef<Job['state'] | null>(null);
@@ -131,6 +134,21 @@ export const JobDetailPage: React.FC = () => {
         }
     };
 
+    const handleRetry = async () => {
+        if (!job) return;
+        setIsRetrying(true);
+        setRetryError(null);
+        setMascotState({ mode: 'thinking', message: 'retrying…' });
+        try {
+            const next = await jobsApi.retry(job.job_id);
+            navigate(`/jobs/${next.job_id}`);
+        } catch {
+            setRetryError('Failed to retry job');
+            setIsRetrying(false);
+            setMascotState({ mode: 'failure', message: 'retry failed' });
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen">
@@ -178,6 +196,12 @@ export const JobDetailPage: React.FC = () => {
     const policy: string | undefined = typeof policyValue === 'string' ? policyValue : undefined;
     const targetsValue: unknown = metadata.targets;
     const targets: string[] | undefined = Array.isArray(targetsValue) ? targetsValue.filter((t): t is string => typeof t === 'string') : undefined;
+    const normalizationMetaValue: unknown = (metadata as Record<string, unknown>)?.normalization;
+    const normalizationMeta: Record<string, unknown> | undefined =
+        normalizationMetaValue && typeof normalizationMetaValue === 'object' ? (normalizationMetaValue as Record<string, unknown>) : undefined;
+    const normalizationEstimateValue: unknown = (metadata as Record<string, unknown>)?.normalization_estimate_seconds;
+    const normalizationEstimateSeconds: number | undefined =
+        typeof normalizationEstimateValue === 'number' && Number.isFinite(normalizationEstimateValue) ? normalizationEstimateValue : undefined;
 
     const primaryArtifact = pickPrimaryArtifact({ state: job.state, artifacts, selectedVariant });
     const convertedModelLabel =
@@ -233,6 +257,34 @@ export const JobDetailPage: React.FC = () => {
                 {/* Tab Content */}
                 {activeTab === 'overview' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                        {normalizationMeta || normalizationEstimateSeconds !== undefined ? (
+                            <div className="card lg:col-span-2">
+                                <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">ONNX Baseline</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)] p-4">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Estimated</div>
+                                        <div className="text-[color:var(--soac-text)] font-medium">
+                                            {normalizationEstimateSeconds !== undefined ? `${Math.max(1, Math.round(normalizationEstimateSeconds))}s` : '-'}
+                                        </div>
+                                    </div>
+                                    <div className="border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)] p-4">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Actual</div>
+                                        <div className="text-[color:var(--soac-text)] font-medium">
+                                            {typeof normalizationMeta?.duration_ms === 'number'
+                                                ? `${Math.max(1, Math.round(normalizationMeta.duration_ms / 1000))}s`
+                                                : '-'}
+                                        </div>
+                                    </div>
+                                    <div className="border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)] p-4">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Status</div>
+                                        <div className="text-[color:var(--soac-text)] font-medium">
+                                            {typeof normalizationMeta?.success === 'boolean' ? (normalizationMeta.success ? 'Ready' : 'Failed') : '-'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
                         
                         {/* Optimization Summary - NEW SECTION */}
                         {summary ? (
@@ -509,6 +561,18 @@ export const JobDetailPage: React.FC = () => {
                         <p className="text-red-300">
                             {(metadata.error as string) || 'An error occurred during compilation'}
                         </p>
+                        <div className="mt-4 flex items-center gap-3">
+                            <button
+                                onClick={handleRetry}
+                                disabled={isRetrying}
+                                className="cta-btn cta-btn--sm magnetic"
+                            >
+                                <span>{isRetrying ? 'Retrying…' : 'Retry'}</span>
+                            </button>
+                            {retryError ? (
+                                <div className="text-sm text-red-300">{retryError}</div>
+                            ) : null}
+                        </div>
                     </div>
                 )}
             </main>

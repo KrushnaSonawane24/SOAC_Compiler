@@ -8,7 +8,7 @@ ALO IS NOT ML TRAINING.
 ALO uses deterministic, explainable rules to select optimal variants.
 
 DECISION RULES (NON-NEGOTIABLE):
-    1. REJECT any variant with accuracy_drop > 2%
+    1. REJECT any variant with accuracy_drop > 1%
     2. Among valid variants:
        a. Select LOWEST latency
        b. Tie-breaker: SMALLEST size
@@ -53,7 +53,7 @@ def check_accuracy_constraint(
     
     Args:
         variant: The variant to check.
-        threshold: Maximum allowed accuracy drop (default 2%).
+        threshold: Maximum allowed accuracy drop (default 1%).
     
     Returns:
         Tuple of (is_valid, rejection_reason).
@@ -71,6 +71,7 @@ def check_accuracy_constraint(
 def filter_valid_variants(
     variants: List[OptimizedVariant],
     accuracy_threshold: float = MAX_ACCURACY_DROP,
+    max_size_bytes: Optional[int] = None,
 ) -> Tuple[List[OptimizedVariant], List[RejectedVariant]]:
     """
     Filter variants to only those passing all constraints.
@@ -93,6 +94,10 @@ def filter_valid_variants(
         
         # Check accuracy constraint
         is_valid, reason = check_accuracy_constraint(variant, accuracy_threshold)
+
+        if is_valid and max_size_bytes is not None and variant.size_bytes > max_size_bytes:
+            is_valid = False
+            reason = f"Size {variant.size_bytes}B exceeds limit {max_size_bytes}B"
         
         if is_valid:
             valid.append(variant)
@@ -185,6 +190,7 @@ def select_best_variant(
     variants: List[OptimizedVariant],
     input_hash: str,
     accuracy_threshold: float = MAX_ACCURACY_DROP,
+    max_size_bytes: Optional[int] = None,
 ) -> SelectedVariant:
     """
     Select the best variant using ALO rules.
@@ -194,7 +200,7 @@ def select_best_variant(
     Args:
         variants: List of generated variants.
         input_hash: Hash of original input model.
-        accuracy_threshold: Maximum allowed accuracy drop (default 2%).
+        accuracy_threshold: Maximum allowed accuracy drop (default 1%).
     
     Returns:
         SelectedVariant with complete decision trace.
@@ -215,7 +221,7 @@ def select_best_variant(
     logger.info(f"ALO: Selecting from {len(variants)} variants")
     
     # Step 1: Filter to valid variants
-    valid_variants, rejected = filter_valid_variants(variants, accuracy_threshold)
+    valid_variants, rejected = filter_valid_variants(variants, accuracy_threshold, max_size_bytes=max_size_bytes)
     
     logger.info(f"ALO: {len(valid_variants)} valid, {len(rejected)} rejected")
     
@@ -292,151 +298,3 @@ def add_benchmark_metrics(
         error_message=variant.error_message,
         metadata=variant.metadata,
     )
-
-
-# =============================================================================
-# V2 API - COST MODEL + CONSTRAINTS + POLICY
-# =============================================================================
-
-def select_best_variant_v2(
-    variants: List[OptimizedVariant],
-    input_hash: str,
-    policy_name: str = "latency_first",
-    accuracy_threshold: float = MAX_ACCURACY_DROP,
-    memory_limit_mb: Optional[float] = None,
-    target_backends: Optional[List[str]] = None,
-) -> SelectedVariant:
-    """
-    Select the best variant using Cost Model + Constraints + Policy.
-    
-    This is the NEW selection API that separates:
-        - Measurement (CostModel)
-        - Correctness (Constraints)
-        - Decision (Policy)
-    
-    Args:
-        variants: List of generated variants.
-        input_hash: Hash of original input model.
-        policy_name: Selection policy ('latency_first', 'accuracy_first', 'mobile_first').
-        accuracy_threshold: Maximum allowed accuracy drop (default 2%).
-        memory_limit_mb: Optional memory limit in MB.
-        target_backends: Optional list of required backends.
-    
-    Returns:
-        SelectedVariant with complete decision trace.
-    
-    Raises:
-        NoValidVariantsError: If all variants fail constraints.
-    
-    GUARANTEES:
-        - Deterministic: same inputs always produce same selection
-        - Explainable: complete constraint and cost breakdown
-        - Policy-driven: selection uses only cost model outputs
-    
-    Example:
-        >>> result = select_best_variant_v2(
-        ...     variants, "abc123",
-        ...     policy_name="mobile_first",
-        ...     memory_limit_mb=256
-        ... )
-    """
-    from backend.compiler.cost import EmpiricalCostModel
-    from backend.compiler.constraints import (
-        ConstraintChecker,
-        AccuracyConstraint,
-        MemoryConstraint,
-        BackendSupportConstraint,
-    )
-    from backend.compiler.policies import get_policy
-    
-    logger.info(f"ALO v2: Selecting from {len(variants)} variants, policy={policy_name}")
-    
-    # Build constraints
-    constraints = [AccuracyConstraint(max_drop=accuracy_threshold)]
-    
-    if memory_limit_mb is not None:
-        constraints.append(MemoryConstraint(max_memory_mb=memory_limit_mb))
-    
-    if target_backends:
-        constraints.append(BackendSupportConstraint(target_backends=set(target_backends)))
-    
-    # Step 1: Filter by constraints
-    checker = ConstraintChecker(constraints)
-    context = {
-        "accuracy_threshold": accuracy_threshold,
-        "memory_limit_mb": memory_limit_mb,
-        "target_backends": target_backends,
-    }
-    filter_result = checker.filter(variants, context)
-    
-    valid_variants = filter_result.valid
-    
-    logger.info(f"ALO v2: {len(valid_variants)} valid, {len(filter_result.rejected)} rejected")
-    
-    if not valid_variants:
-        rejection_reasons = [
-            summary.results[0].message for v, summary in filter_result.rejected
-        ]
-        raise NoValidVariantsError(
-            total_variants=len(variants),
-            reasons=rejection_reasons,
-        )
-    
-    # Step 2: Compute costs for valid variants
-    cost_model = EmpiricalCostModel()
-    costs = [cost_model.estimate(v) for v in valid_variants]
-    cost_explanations = {v.variant_id: cost_model.explain(v) for v in valid_variants}
-    
-    # Step 3: Apply policy to select winner
-    policy = get_policy(policy_name)
-    selection_result = policy.select(valid_variants, costs)
-    
-    selected = selection_result.selected
-    
-    logger.info(f"ALO v2: Selected {selected.variant_id} - {selection_result.rationale}")
-    
-    # Step 4: Create legacy-compatible decision trace
-    # Convert back to legacy format for compatibility
-    rejected_legacy = [
-        RejectedVariant(
-            variant_id=v.variant_id,
-            variant_type=v.variant_type,
-            rejection_reason=summary.results[0].message if summary.results else "Unknown",
-            accuracy_drop=v.metrics.accuracy_drop if v.metrics else None,
-        )
-        for v, summary in filter_result.rejected
-    ]
-    
-    ranking = rank_variants(valid_variants)
-    selection_reason = f"[POLICY:{policy_name.upper()}] {selection_result.rationale}"
-    
-    trace = create_decision_trace(
-        input_hash=input_hash,
-        all_variants=variants,
-        valid_variants=valid_variants,
-        rejected=rejected_legacy,
-        ranking=ranking,
-        selected_id=selected.variant_id,
-        selection_reason=selection_reason,
-        accuracy_threshold=accuracy_threshold,
-    )
-    
-    # Add v2 metadata to trace
-    trace.metadata["policy_name"] = policy_name
-    trace.metadata["policy_scores"] = {
-        s.variant_id: s.score for s in selection_result.all_scores
-    }
-    trace.metadata["cost_breakdown"] = {
-        vid: expl.to_dict() for vid, expl in cost_explanations.items()
-    }
-    trace.metadata["constraint_results"] = {
-        vid: summary.to_dict() for vid, summary in filter_result.summaries.items()
-    }
-    
-    return SelectedVariant(
-        variant=selected,
-        decision_trace=trace,
-        all_variants=variants,
-        rejected_variants=rejected_legacy,
-    )
-

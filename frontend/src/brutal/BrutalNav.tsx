@@ -44,22 +44,16 @@ export const BrutalNav: React.FC<BrutalNavProps> = ({ variant }) => {
               </Link>
             </li>
             <li>
-              <a
-                href="http://127.0.0.1:8000/docs"
-                className="nav-link magnetic"
-                data-text="DOCS"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <Link to="/docs" className="nav-link magnetic" data-text="DOCS">
                 DOCS
-              </a>
+              </Link>
             </li>
           </>
         ) : (
           <>
             <li>
-              <Link to="/dashboard" className="nav-link magnetic" data-text="DASHBOARD">
-                Dashboard
+              <Link to="/docs" className="nav-link magnetic" data-text="DOCS">
+                Docs
               </Link>
             </li>
             <li>

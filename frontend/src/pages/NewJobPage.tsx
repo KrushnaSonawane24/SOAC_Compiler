@@ -19,7 +19,7 @@ export const NewJobPage: React.FC = () => {
 
     const [file, setFile] = useState<File | null>(null);
     const [policy, setPolicy] = useState<Policy>('balanced');
-    const [targets, setTargets] = useState<string[]>(['android', 'gpu']);
+    const [target, setTarget] = useState<string>('android');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -31,14 +31,6 @@ export const NewJobPage: React.FC = () => {
         }
     };
 
-    const toggleTarget = (target: string) => {
-        setTargets(prev => 
-            prev.includes(target) 
-                ? prev.filter(t => t !== target)
-                : [...prev, target]
-        );
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file) {
@@ -46,10 +38,7 @@ export const NewJobPage: React.FC = () => {
             return;
         }
 
-        if (targets.length === 0) {
-            setError('Please select at least one deployment target');
-            return;
-        }
+        if (!target) return;
 
         setIsSubmitting(true);
         setError(null);
@@ -58,7 +47,7 @@ export const NewJobPage: React.FC = () => {
         try {
             const config: CreateJobRequest = {
                 policy,
-                targets,
+                targets: [target],
                 compilation_policy: policy // For backward compatibility if needed
             };
 
@@ -140,15 +129,15 @@ export const NewJobPage: React.FC = () => {
                                 <span className="step-badge mr-3">2</span>
                                 Deployment Targets
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div 
                                     className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
-                                        ${targets.includes('android') ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
-                                    onClick={() => toggleTarget('android')}
+                                        ${target === 'android' ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
+                                    onClick={() => setTarget('android')}
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
-                                        ${targets.includes('android') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
-                                        {targets.includes('android') && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                        ${target === 'android' ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
+                                        {target === 'android' && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-[color:var(--soac-text)]">Android (TFLite)</h3>
@@ -160,17 +149,34 @@ export const NewJobPage: React.FC = () => {
 
                                 <div 
                                     className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
-                                        ${targets.includes('gpu') ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
-                                    onClick={() => toggleTarget('gpu')}
+                                        ${target === 'gpu' ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
+                                    onClick={() => setTarget('gpu')}
                                 >
                                     <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
-                                        ${targets.includes('gpu') ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
-                                        {targets.includes('gpu') && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                        ${target === 'gpu' ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
+                                        {target === 'gpu' && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-[color:var(--soac-text)]">NVIDIA GPU (TensorRT)</h3>
                                         <p className="text-sm text-[color:var(--soac-muted)] mt-1">
                                             Engine builds for GPU inference. FP16/INT8 where supported.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div 
+                                    className={`relative rounded-xl p-4 border-2 cursor-pointer transition-all duration-200 flex items-start space-x-4
+                                        ${target === 'onnx' ? 'border-[color:var(--soac-primary)] bg-[color:var(--soac-card-hover)]' : 'border-[color:var(--soac-border)] bg-[color:var(--soac-card)] hover:border-[color:var(--soac-card-border)]'}`}
+                                    onClick={() => setTarget('onnx')}
+                                >
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded border flex items-center justify-center mt-1
+                                        ${target === 'onnx' ? 'bg-[color:var(--soac-primary)] border-[color:var(--soac-primary)]' : 'border-[color:var(--soac-border)]'}`}>
+                                        {target === 'onnx' && <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-medium text-[color:var(--soac-text)]">ONNX</h3>
+                                        <p className="text-sm text-[color:var(--soac-muted)] mt-1">
+                                            Keep the optimized ONNX model for server/runtime deployment.
                                         </p>
                                     </div>
                                 </div>

@@ -18,6 +18,7 @@ class TargetPlatform(str, Enum):
     IOS = "ios"
     CPU = "cpu"
     GPU = "gpu"
+    ONNX = "onnx"
 
 
 class ArtifactStatus(str, Enum):

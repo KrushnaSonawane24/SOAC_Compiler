@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 type BrutalNavVariant = 'public' | 'app';
@@ -18,6 +18,8 @@ export const BrutalNav: React.FC<BrutalNavProps> = ({ variant }) => {
   };
 
   const showAppNav = variant === 'app' && isAuthenticated;
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    isActive ? 'nav-link nav-link--active magnetic' : 'nav-link magnetic';
 
   return (
     <nav className="brutal-nav">
@@ -34,37 +36,37 @@ export const BrutalNav: React.FC<BrutalNavProps> = ({ variant }) => {
         {showAppNav ? (
           <>
             <li>
-              <Link to="/dashboard" className="nav-link magnetic" data-text="DASHBOARD">
+              <NavLink to="/dashboard" end className={navLinkClass} data-text="DASHBOARD">
                 DASHBOARD
-              </Link>
+              </NavLink>
             </li>
             <li>
-              <Link to="/new" className="nav-link magnetic" data-text="UPLOAD">
+              <NavLink to="/new" className={navLinkClass} data-text="UPLOAD">
                 UPLOAD
-              </Link>
+              </NavLink>
             </li>
             <li>
-              <Link to="/docs" className="nav-link magnetic" data-text="DOCS">
+              <NavLink to="/docs" className={navLinkClass} data-text="DOCS">
                 DOCS
-              </Link>
+              </NavLink>
             </li>
           </>
         ) : (
           <>
             <li>
-              <Link to="/docs" className="nav-link magnetic" data-text="DOCS">
-                Docs
-              </Link>
+              <NavLink to="/docs" className={navLinkClass} data-text="DOCS">
+                DOCS
+              </NavLink>
             </li>
             <li>
-              <Link to="/login" className="nav-link magnetic" data-text="LOGIN">
-                Login
-              </Link>
+              <NavLink to="/login" className={navLinkClass} data-text="LOGIN">
+                LOGIN
+              </NavLink>
             </li>
             <li>
-              <Link to="/register" className="nav-link magnetic" data-text="REGISTER">
-                Register
-              </Link>
+              <NavLink to="/register" className={navLinkClass} data-text="REGISTER">
+                REGISTER
+              </NavLink>
             </li>
           </>
         )}

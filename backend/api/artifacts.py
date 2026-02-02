@@ -5,7 +5,7 @@ SOAC Artifacts API
 Artifact listing and download.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
 from pathlib import Path
 import zipfile
@@ -23,6 +23,7 @@ from backend.jobs import (
     JobNotCompletedError,
     JobState,
 )
+from backend.audit import AuditEvent
 
 
 router = APIRouter(prefix="/jobs", tags=["artifacts"])
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/jobs", tags=["artifacts"])
 
 @router.get("/{job_id}/artifacts", response_model=ArtifactsResponse)
 async def list_artifacts(
+    request: Request,
     job_id: str,
     user_id: str = Depends(get_current_user),
     manager: JobManager = Depends(get_manager),
@@ -41,6 +43,12 @@ async def list_artifacts(
     """
     try:
         job = manager.get_job(job_id, user_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(action="ARTIFACT_LIST", user_id=user_id, metadata={"job_id": job_id}),
+            )
         
         if job.state not in [JobState.COMPLETED, JobState.FAILED]:
             return ArtifactsResponse(
@@ -64,6 +72,7 @@ async def list_artifacts(
 
 @router.get("/{job_id}/artifacts/{artifact_id}")
 async def download_artifact(
+    request: Request,
     job_id: str,
     artifact_id: str,
     user_id: str = Depends(get_current_user),
@@ -81,6 +90,16 @@ async def download_artifact(
             raise BadRequestError("Job not completed yet")
         
         artifact_path = manager.get_artifact_path(job_id, artifact_id, user_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(
+                    action="ARTIFACT_DOWNLOAD",
+                    user_id=user_id,
+                    metadata={"job_id": job_id, "artifact_id": artifact_id, "path": str(artifact_path)},
+                ),
+            )
         
         if artifact_path.is_dir():
             # Create zip of directory

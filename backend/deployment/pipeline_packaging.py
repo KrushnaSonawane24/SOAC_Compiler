@@ -22,7 +22,7 @@ from .metadata import (
     create_skipped_artifact,
     create_failed_artifact,
 )
-from .tflite import convert_onnx_to_tflite, is_tflite_available
+from .tflite import convert_onnx_to_tflite, convert_tf_to_tflite, is_tflite_available
 from .onnxruntime_pkg import create_onnxruntime_package, is_onnxruntime_available
 from .tensorrt import build_tensorrt_engine, is_tensorrt_available
 from .coreml import convert_onnx_to_coreml, is_coreml_available
@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 def _generate_android_artifact(
     source_path: Path,
     output_dir: Path,
+    policy: str = "balanced",
+    original_input_path: Optional[Path] = None,
 ) -> DeploymentArtifact:
     """Generate best Android TFLite model."""
     if not is_tflite_available():
@@ -51,13 +53,21 @@ def _generate_android_artifact(
     
     candidates = []
     
-    # Try generating variants (INT8 > FP16 > FP32)
-    # Note: TFLite INT8 requires calibration data. 
-    # Our updated convert_onnx_to_tflite generates dummy calibration data if needed.
-    for q in ["int8", "fp16", "fp32"]:
+    quantization_order = ["int8", "fp16", "fp32"]
+    if policy == "accuracy_first":
+        quantization_order = ["fp32", "fp16", "int8"]
+    elif policy == "mobile_first":
+        quantization_order = ["int8", "fp16", "fp32"]
+    elif policy == "latency_first":
+        quantization_order = ["int8", "fp16", "fp32"]
+
+    for q in quantization_order:
         try:
             out_path = output_dir / f"model_{q}.tflite"
-            artifact = convert_onnx_to_tflite(source_path, out_path, quantization=q)
+            if original_input_path is not None and (original_input_path.is_dir() or original_input_path.suffix.lower() in [".h5", ".keras"]):
+                artifact = convert_tf_to_tflite(original_input_path, out_path, quantization=q)
+            else:
+                artifact = convert_onnx_to_tflite(source_path, out_path, quantization=q)
             
             if artifact.status == ArtifactStatus.SUCCESS:
                 # Benchmark
@@ -80,12 +90,13 @@ def _generate_android_artifact(
             error_message="All TFLite variants failed generation",
         )
         
-    # Select best: Prefer INT8 if available (and size/accuracy good - implicit in generation)
-    # Sort by preference: INT8 (3) > FP16 (2) > FP32 (1)
-    # Secondary sort: Latency (lower is better)
+    preference = {"fp32": 3, "fp16": 2, "int8": 1}
+    if policy in ["balanced", "latency_first", "mobile_first"]:
+        preference = {"int8": 3, "fp16": 2, "fp32": 1}
+
     def sort_key(c):
         _, lat, _, q = c
-        pref = {"int8": 3, "fp16": 2, "fp32": 1}.get(q, 0)
+        pref = preference.get(q, 0)
         return (-pref, lat)
         
     candidates.sort(key=sort_key)
@@ -126,6 +137,7 @@ def _generate_android_artifact(
 def _generate_gpu_artifact(
     source_path: Path,
     output_dir: Path,
+    policy: str = "balanced",
 ) -> DeploymentArtifact:
     """Generate best GPU TensorRT engine."""
     if not is_tensorrt_available():
@@ -140,8 +152,11 @@ def _generate_gpu_artifact(
     
     candidates = []
     
-    # Try generating variants (INT8 > FP16)
-    for p in ["int8", "fp16"]:
+    precision_order = ["int8", "fp16"]
+    if policy == "accuracy_first":
+        precision_order = ["fp16", "int8"]
+
+    for p in precision_order:
         try:
             out_path = output_dir / f"model_{p}.plan"
             artifact = build_tensorrt_engine(source_path, out_path, precision=p)
@@ -167,10 +182,13 @@ def _generate_gpu_artifact(
             error_message="All TensorRT variants failed generation",
         )
         
-    # Select best: Prefer INT8 if available
+    preference = {"fp16": 2, "int8": 1}
+    if policy in ["balanced", "latency_first", "mobile_first"]:
+        preference = {"int8": 2, "fp16": 1}
+
     def sort_key(c):
         _, lat, _, p = c
-        pref = {"int8": 2, "fp16": 1}.get(p, 0)
+        pref = preference.get(p, 0)
         return (-pref, lat)
         
     candidates.sort(key=sort_key)
@@ -207,6 +225,8 @@ def generate_deployment_artifacts(
     output_dir: Optional[Path] = None,
     targets: Optional[list] = None,
     canonical_path: Optional[Path] = None,
+    policy: str = "balanced",
+    original_input_path: Optional[Path] = None,
 ) -> DeploymentBundle:
     """
     Generate all deployment artifacts from an ONNX model.
@@ -241,6 +261,7 @@ def generate_deployment_artifacts(
             TargetPlatform.IOS,
             TargetPlatform.CPU,
             TargetPlatform.GPU,
+            TargetPlatform.ONNX,
         ]
     
     logger.info(f"Generating deployment artifacts for: {variant_id}")
@@ -249,12 +270,31 @@ def generate_deployment_artifacts(
     
     artifacts: Dict[TargetPlatform, DeploymentArtifact] = {}
     
+    def _generate_onnx_artifact() -> DeploymentArtifact:
+        onnx_dir = output_dir / "onnx"
+        onnx_dir.mkdir(parents=True, exist_ok=True)
+        out_path = onnx_dir / "model.onnx"
+        shutil.copy2(onnx_path, out_path)
+        return DeploymentArtifact(
+            platform=TargetPlatform.ONNX,
+            format="onnx",
+            path=out_path,
+            size_bytes=out_path.stat().st_size,
+            status=ArtifactStatus.SUCCESS,
+            metadata={"source_variant_id": variant_id},
+        )
+
     # Generate each target
     for target in targets:
         try:
             if target == TargetPlatform.ANDROID:
                 # Use our smart generator
-                artifact = _generate_android_artifact(conversion_source, output_dir)
+                artifact = _generate_android_artifact(
+                    conversion_source,
+                    output_dir,
+                    policy=policy,
+                    original_input_path=original_input_path,
+                )
             elif target == TargetPlatform.IOS:
                 artifact = convert_onnx_to_coreml(
                     conversion_source,
@@ -270,7 +310,9 @@ def generate_deployment_artifacts(
                 )
             elif target == TargetPlatform.GPU:
                 # Use our smart generator
-                artifact = _generate_gpu_artifact(conversion_source, output_dir)
+                artifact = _generate_gpu_artifact(conversion_source, output_dir, policy=policy)
+            elif target == TargetPlatform.ONNX:
+                artifact = _generate_onnx_artifact()
             else:
                 continue
             
@@ -331,4 +373,5 @@ def get_available_targets() -> Dict[str, bool]:
         "ios": is_coreml_available(),
         "cpu": is_onnxruntime_available(),
         "gpu": is_tensorrt_available(),
+        "onnx": True,
     }

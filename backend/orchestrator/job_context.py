@@ -87,6 +87,7 @@ class JobConfig:
             "simulate_accuracy_drop": self.simulate_accuracy_drop,
             "simulate_latency_spike": self.simulate_latency_spike,
             "simulate_memory_exceed": self.simulate_memory_exceed,
+            "compilation_policy": self.compilation_policy,
         }
 
 

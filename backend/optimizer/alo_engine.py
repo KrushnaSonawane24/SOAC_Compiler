@@ -159,6 +159,100 @@ def rank_variants(variants: List[OptimizedVariant]) -> List[RankedVariant]:
     return ranked
 
 
+def rank_variants_with_policy(
+    variants: List[OptimizedVariant],
+    compilation_policy: str,
+    accuracy_threshold: float,
+) -> List[RankedVariant]:
+    if not variants:
+        return []
+
+    from backend.policies.compilation_policy import CompilationPolicy, compute_policy_score, get_variant_preference
+
+    try:
+        policy = CompilationPolicy(compilation_policy)
+    except Exception:
+        policy = CompilationPolicy.BALANCED
+
+    latencies = [v.metrics.latency_ms for v in variants if v.metrics]
+    memories = [v.metrics.memory_mb for v in variants if v.metrics]
+    sizes = [v.size_bytes for v in variants]
+
+    min_lat, max_lat = (min(latencies), max(latencies)) if latencies else (0.0, 0.0)
+    min_mem, max_mem = (min(memories), max(memories)) if memories else (0.0, 0.0)
+    min_size, max_size = (min(sizes), max(sizes)) if sizes else (0, 0)
+
+    preferred_order = get_variant_preference(policy)
+    preferred_index = {name: i for i, name in enumerate(preferred_order)}
+
+    def clamp01(x: float) -> float:
+        if x < 0.0:
+            return 0.0
+        if x > 1.0:
+            return 1.0
+        return x
+
+    def norm_inverse(value: float, lo: float, hi: float) -> float:
+        if hi <= lo:
+            return 1.0
+        return clamp01(1.0 - (value - lo) / (hi - lo))
+
+    def norm_accuracy_drop(drop: float) -> float:
+        if accuracy_threshold <= 0:
+            return 1.0 if drop <= 0 else 0.0
+        return clamp01(1.0 - (drop / accuracy_threshold))
+
+    def sort_key(v: OptimizedVariant):
+        if v.metrics:
+            latency_score = norm_inverse(v.metrics.latency_ms, min_lat, max_lat)
+            memory_score = norm_inverse(v.metrics.memory_mb, min_mem, max_mem)
+            accuracy_score = norm_accuracy_drop(v.metrics.accuracy_drop)
+        else:
+            latency_score = 0.0
+            memory_score = 0.0
+            accuracy_score = 1.0
+        size_score = norm_inverse(float(v.size_bytes), float(min_size), float(max_size))
+
+        score = compute_policy_score(
+            accuracy_score=accuracy_score,
+            latency_score=latency_score,
+            memory_score=memory_score,
+            size_score=size_score,
+            policy=policy,
+        )
+
+        vtype = v.variant_type.value
+        pref = preferred_index.get(vtype, len(preferred_order))
+        latency = v.metrics.latency_ms if v.metrics else float("inf")
+        return (-score, pref, latency, v.size_bytes, -VARIANT_PREFERENCE_ORDER.get(v.variant_type, 0))
+
+    sorted_variants = sorted(variants, key=sort_key)
+
+    ranked: List[RankedVariant] = []
+    for rank, variant in enumerate(sorted_variants, start=1):
+        latency = variant.metrics.latency_ms if variant.metrics else float("inf")
+        accuracy_drop = variant.metrics.accuracy_drop if variant.metrics else 0.0
+        memory_mb = variant.metrics.memory_mb if variant.metrics else 0.0
+        pref_score = VARIANT_PREFERENCE_ORDER.get(variant.variant_type, 0)
+        breakdown = (
+            f"policy={policy.value}, latency={latency:.2f}ms, memory={memory_mb:.2f}MB, "
+            f"accuracy_drop={accuracy_drop:.2%}, size={variant.size_bytes}B, pref={pref_score}"
+        )
+        ranked.append(
+            RankedVariant(
+                variant_id=variant.variant_id,
+                variant_type=variant.variant_type,
+                rank=rank,
+                latency_ms=latency,
+                size_bytes=variant.size_bytes,
+                preference_score=pref_score,
+                score_breakdown=breakdown,
+            )
+        )
+
+    return ranked
+
+
 def generate_selection_reason(
     selected: OptimizedVariant,
     all_valid: List[OptimizedVariant],
@@ -191,6 +285,7 @@ def select_best_variant(
     input_hash: str,
     accuracy_threshold: float = MAX_ACCURACY_DROP,
     max_size_bytes: Optional[int] = None,
+    compilation_policy: str = "balanced",
 ) -> SelectedVariant:
     """
     Select the best variant using ALO rules.
@@ -232,7 +327,7 @@ def select_best_variant(
         )
     
     # Step 2: Rank valid variants
-    ranking = rank_variants(valid_variants)
+    ranking = rank_variants_with_policy(valid_variants, compilation_policy, accuracy_threshold)
     
     # Step 3: Select the best (rank 1)
     best_rank = ranking[0]

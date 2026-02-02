@@ -19,6 +19,7 @@ DESIGN PRINCIPLES:
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 
@@ -65,6 +66,10 @@ from .architecture_rules import (
 
 
 logger = logging.getLogger(__name__)
+
+def _env_truthy(name: str, default: str = "0") -> bool:
+    value = os.environ.get(name, default)
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 # =============================================================================
@@ -301,19 +306,36 @@ def validate_onnx_model(
     
     # Step 7: Detect architecture
     architecture = detect_architecture(operators, primary_input.shape)
+    allow_unknown_architecture = _env_truthy("SOAC_ALLOW_UNKNOWN_ARCHITECTURE", default="1")
     
     if architecture is None:
-        raise UnsupportedArchitectureError(
-            detected_architecture=None,
-            reason="Architecture not recognized",
-            operators=operators[:20],  # Sample of operators
-        )
+        if allow_unknown_architecture:
+            architecture = ArchitectureInfo(
+                name="unknown",
+                family="unknown",
+                variant="",
+                confidence=0.0,
+            )
+        else:
+            raise UnsupportedArchitectureError(
+                detected_architecture=None,
+                reason="Architecture not recognized",
+                operators=operators[:20],  # Sample of operators
+            )
     
     if not is_supported_architecture(architecture.name):
-        raise UnsupportedArchitectureError(
-            detected_architecture=architecture.name,
-            reason=f"Architecture '{architecture.name}' is not in supported list",
-        )
+        if allow_unknown_architecture:
+            architecture = ArchitectureInfo(
+                name="unknown",
+                family="unknown",
+                variant="",
+                confidence=0.0,
+            )
+        else:
+            raise UnsupportedArchitectureError(
+                detected_architecture=architecture.name,
+                reason=f"Architecture '{architecture.name}' is not in supported list",
+            )
     
     # Step 8: Get model type from architecture
     arch_info = SUPPORTED_ARCHITECTURES.get(architecture.name)
@@ -335,6 +357,7 @@ def validate_onnx_model(
             "onnx_ir_version": model.ir_version,
             "onnx_opset_version": model.opset_import[0].version if model.opset_import else None,
             "producer_name": model.producer_name or "unknown",
+            "allow_unknown_architecture": allow_unknown_architecture,
         },
     )
 

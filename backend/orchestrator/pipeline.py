@@ -56,7 +56,7 @@ from backend.optimizer import (
     SelectedVariant,
 )
 from backend.benchmark import measure_latency, measure_memory, measure_size, create_sample_input, create_synthetic_dataset, evaluate_accuracy
-from backend.deployment import generate_deployment_artifacts
+from backend.deployment import generate_deployment_artifacts, TargetPlatform
 
 
 logger = logging.getLogger(__name__)
@@ -376,13 +376,17 @@ class SOACPipeline:
             input_hash = self.ctx.metadata.get("canonical_hash", "unknown")
 
             max_size_bytes = int(self.ctx.config.max_model_size_mb) * 1024 * 1024
+            effective_accuracy = self.ctx.config.accuracy_threshold
+            if self.ctx.config.compilation_policy == "accuracy_first":
+                effective_accuracy = min(effective_accuracy, 0.0)
             
             try:
                 selection = select_best_variant(
                     variants,
                     input_hash,
-                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                    accuracy_threshold=effective_accuracy,
                     max_size_bytes=max_size_bytes,
+                    compilation_policy=self.ctx.config.compilation_policy,
                 )
             except NoValidVariantsError as e:
                 self.ctx.log("No optimized variants met constraints; attempting baseline rollback")
@@ -400,7 +404,7 @@ class SOACPipeline:
 
                 valid_variants, rejected = filter_valid_variants(
                     variants,
-                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                    accuracy_threshold=effective_accuracy,
                     max_size_bytes=max_size_bytes,
                 )
                 ranking = rank_variants([baseline])
@@ -412,7 +416,7 @@ class SOACPipeline:
                     ranking=ranking,
                     selected_id=baseline.variant_id,
                     selection_reason="Rolled back to baseline for stability and constraints compliance",
-                    accuracy_threshold=self.ctx.config.accuracy_threshold,
+                    accuracy_threshold=effective_accuracy,
                 )
                 selection = SelectedVariant(
                     variant=baseline,
@@ -489,6 +493,16 @@ class SOACPipeline:
         """Stage 6: Generate deployment artifacts."""
         self._transition(PipelineStage.DEPLOYING)
         max_attempts = max(1, int(self.ctx.config.max_stage_attempts))
+        target_map = {
+            "android": TargetPlatform.ANDROID,
+            "ios": TargetPlatform.IOS,
+            "cpu": TargetPlatform.CPU,
+            "gpu": TargetPlatform.GPU,
+            "onnx": TargetPlatform.ONNX,
+        }
+        requested_targets = None
+        if self.ctx.config.deployment_targets:
+            requested_targets = [target_map[t] for t in self.ctx.config.deployment_targets if t in target_map]
 
         for attempt in range(1, max_attempts + 1):
             start = time.perf_counter()
@@ -501,7 +515,10 @@ class SOACPipeline:
                     variant_id=selection.variant.variant_id,
                     source_hash=selection.variant.graph_hash,
                     output_dir=self.ctx.deployment_dir,
+                    targets=requested_targets,
                     canonical_path=canonical_path,
+                    policy=self.ctx.config.compilation_policy,
+                    original_input_path=self.ctx.input_path,
                 )
 
                 self.ctx.add_artifact("deployment", bundle.output_dir)

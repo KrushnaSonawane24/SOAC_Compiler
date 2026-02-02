@@ -25,9 +25,11 @@ classifiers = [
 
 dependencies = [
     "fastapi>=0.109.0",
+    "email-validator>=2.0.0",
     "python-multipart>=0.0.6",
     "python-magic-bin>=0.4.14;sys_platform=='win32'",
     "python-magic>=0.4.27;sys_platform!='win32'",
+    "motor>=3.6.0",
     "onnx>=1.15.0",
     "onnxruntime>=1.16.0",
     "h5py>=3.10.0",
@@ -50,8 +52,8 @@ dev = [
 ]
 # Model conversion support
 tensorflow = [
-    "tensorflow>=2.15.0",
-    "tf2onnx>=1.16.0",
+    "tensorflow>=2.20.0",
+    "tf2onnx>=1.16.1",
 ]
 pytorch = [
     "torch>=2.1.0",

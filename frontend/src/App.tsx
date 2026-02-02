@@ -10,6 +10,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { RegisteredPage } from './pages/RegisteredPage';
 import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
+import { AboutPage } from './pages/AboutPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewJobPage } from './pages/NewJobPage';
 import { JobDetailPage } from './pages/JobDetailPage';
@@ -34,6 +35,7 @@ function App() {
 
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/docs" element={<DocsPage />} />
+                    <Route path="/about" element={<AboutPage />} />
                     <Route
                       path="/dashboard"
                       element={

@@ -29,6 +29,7 @@ from .oauth import (
     generate_oauth_state,
     verify_oauth_state,
 )
+from backend.audit import AuditEvent
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -93,6 +94,7 @@ class OAuthLoginResponse(BaseModel):
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(
+    http_request: Request,
     request: RegisterRequest,
     store: UserStore = Depends(get_user_store),
 ):
@@ -109,6 +111,16 @@ async def register(
         )
         
         token = create_access_token(user)
+        audit_logger = getattr(http_request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                http_request,
+                AuditEvent(
+                    action="AUTH_REGISTER",
+                    user_id=user.user_id,
+                    metadata={"email": user.email, "provider": AuthProvider.LOCAL.value},
+                ),
+            )
         
         return TokenResponse(
             access_token=token,
@@ -117,6 +129,16 @@ async def register(
         )
     
     except UserExistsError:
+        audit_logger = getattr(http_request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                http_request,
+                AuditEvent(
+                    action="AUTH_REGISTER_FAILED",
+                    user_id=None,
+                    metadata={"email": request.email, "reason": "USER_EXISTS"},
+                ),
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={"error": "Email already registered", "error_code": "USER_EXISTS"},
@@ -125,6 +147,7 @@ async def register(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    http_request: Request,
     request: LoginRequest,
     store: UserStore = Depends(get_user_store),
 ):
@@ -136,6 +159,16 @@ async def login(
     try:
         user = store.authenticate(request.email, request.password)
         token = create_access_token(user)
+        audit_logger = getattr(http_request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                http_request,
+                AuditEvent(
+                    action="AUTH_LOGIN",
+                    user_id=user.user_id,
+                    metadata={"email": user.email, "provider": user.provider.value},
+                ),
+            )
         
         return TokenResponse(
             access_token=token,
@@ -144,10 +177,38 @@ async def login(
         )
     
     except InvalidCredentialsError:
+        audit_logger = getattr(http_request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                http_request,
+                AuditEvent(
+                    action="AUTH_LOGIN_FAILED",
+                    user_id=None,
+                    metadata={"email": request.email, "reason": "INVALID_CREDENTIALS"},
+                ),
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "Invalid email or password", "error_code": "INVALID_CREDENTIALS"},
         )
+
+
+@router.post("/logout")
+async def logout(
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    audit_logger = getattr(http_request.app.state, "audit_logger", None)
+    if audit_logger is not None:
+        await audit_logger.log(
+            http_request,
+            AuditEvent(
+                action="AUTH_LOGOUT",
+                user_id=current_user.user_id,
+                metadata={"email": current_user.email, "provider": current_user.provider.value},
+            ),
+        )
+    return {"status": "ok"}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -231,6 +292,16 @@ async def github_callback(
         
         # Issue SOAC JWT
         token = create_access_token(user)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(
+                    action="AUTH_OAUTH_LOGIN",
+                    user_id=user.user_id,
+                    metadata={"email": user.email, "provider": AuthProvider.GITHUB.value},
+                ),
+            )
 
         return RedirectResponse(_frontend_success_redirect(token))
     
@@ -301,6 +372,16 @@ async def google_callback(
         )
         
         token = create_access_token(user)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(
+                    action="AUTH_OAUTH_LOGIN",
+                    user_id=user.user_id,
+                    metadata={"email": user.email, "provider": AuthProvider.GOOGLE.value},
+                ),
+            )
 
         return RedirectResponse(_frontend_success_redirect(token))
     

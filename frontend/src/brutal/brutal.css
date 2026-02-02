@@ -353,6 +353,15 @@ code {
   color: var(--brutal-accent);
 }
 
+.nav-link[aria-current='page'],
+.nav-link--active {
+  color: #fff;
+  background: rgba(0, 255, 170, 0.12);
+  border: 1px solid rgba(0, 255, 170, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+}
+
 .cta-btn {
   position: relative;
   padding: 0.8rem 2rem;

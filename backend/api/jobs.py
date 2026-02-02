@@ -5,11 +5,12 @@ SOAC Jobs API
 Job management endpoints.
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Query, Form, Request
 from fastapi.responses import FileResponse
 from typing import Optional, List, Dict
 import uuid
 from pathlib import Path
+import shutil
 
 from .schemas import (
     JobResponse,
@@ -23,6 +24,7 @@ from .dependencies import get_current_user, get_manager
 
 from backend.jobs import JobManager, JobNotFoundError, ArtifactNotFoundError, UnauthorizedAccessError
 from backend.security import secure_save_and_validate
+from backend.audit import AuditEvent
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -30,8 +32,9 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 @router.post("", response_model=JobCreatedResponse, status_code=201)
 async def create_job(
+    request: Request,
     file: UploadFile = File(...),
-    targets: List[str] = Form(["android", "gpu"]),
+    targets: List[str] = Form(["android"]),
     policy: str = Form("balanced"),
     user_id: str = Depends(get_current_user),
     manager: JobManager = Depends(get_manager),
@@ -55,6 +58,9 @@ async def create_job(
     # Parse targets if they come as a single comma-separated string (common in FormData)
     if len(targets) == 1 and "," in targets[0]:
         targets = [t.strip() for t in targets[0].split(",")]
+    targets = [t for t in targets if t]
+    if len(targets) != 1:
+        raise ForbiddenError("Select exactly one deployment target")
     
     # Create job
     job = await manager.create_job(
@@ -73,6 +79,28 @@ async def create_job(
             },
         }
     )
+    audit_logger = getattr(request.app.state, "audit_logger", None)
+    if audit_logger is not None:
+        await audit_logger.log(
+            request,
+            AuditEvent(
+                action="JOB_CREATE",
+                user_id=user_id,
+                metadata={
+                    "job_id": job.job_id,
+                    "original_filename": file.filename or "unknown",
+                    "size_bytes": file_size,
+                    "input_path": str(file_path),
+                    "targets": targets,
+                    "policy": policy,
+                    "upload": {
+                        "sha256": upload_meta.file_hash,
+                        "detected_format": upload_meta.model_format,
+                        "mime_type": upload_meta.mime_type,
+                    },
+                },
+            ),
+        )
     
     return JobCreatedResponse(
         job_id=job.job_id,
@@ -82,12 +110,19 @@ async def create_job(
 
 @router.post("/{job_id}/retry", response_model=JobCreatedResponse, status_code=201)
 async def retry_job(
+    request: Request,
     job_id: str,
     user_id: str = Depends(get_current_user),
     manager: JobManager = Depends(get_manager),
 ):
     try:
         job = await manager.retry_job(job_id, user_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(action="JOB_RETRY", user_id=user_id, metadata={"job_id": job_id}),
+            )
         return JobCreatedResponse(
             job_id=job.job_id,
             state=JobStateEnum(job.state.value),
@@ -102,6 +137,7 @@ async def retry_job(
 
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
+    request: Request,
     state: Optional[JobStateEnum] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -119,6 +155,16 @@ async def list_jobs(
         limit=limit,
         offset=offset,
     )
+    audit_logger = getattr(request.app.state, "audit_logger", None)
+    if audit_logger is not None:
+        await audit_logger.log(
+            request,
+            AuditEvent(
+                action="JOB_LIST",
+                user_id=user_id,
+                metadata={"state": state.value if state else None, "limit": limit, "offset": offset},
+            ),
+        )
     
     return JobListResponse(
         jobs=[_job_to_response(j) for j in jobs],
@@ -130,6 +176,7 @@ async def list_jobs(
 
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(
+    request: Request,
     job_id: str,
     user_id: str = Depends(get_current_user),
     manager: JobManager = Depends(get_manager),
@@ -141,6 +188,12 @@ async def get_job(
     """
     try:
         job = manager.get_job(job_id, user_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(action="JOB_VIEW", user_id=user_id, metadata={"job_id": job_id}),
+            )
         return _job_to_response(job)
     except JobNotFoundError:
         raise NotFoundError("Job", job_id)
@@ -150,6 +203,7 @@ async def get_job(
 
 @router.get("/{job_id}/logs", response_model=Dict[str, List[LogEntryResponse]])
 async def get_job_logs(
+    request: Request,
     job_id: str,
     user_id: str = Depends(get_current_user),
     manager: JobManager = Depends(get_manager),
@@ -159,6 +213,12 @@ async def get_job_logs(
     """
     try:
         job = manager.get_job(job_id, user_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(action="JOB_LOGS_VIEW", user_id=user_id, metadata={"job_id": job_id}),
+            )
         return {"logs": [l.to_dict() for l in job.logs]}
     except JobNotFoundError:
         raise NotFoundError("Job", job_id)
@@ -168,6 +228,7 @@ async def get_job_logs(
 
 @router.get("/{job_id}/artifacts/{artifact_id}")
 async def download_artifact(
+    request: Request,
     job_id: str,
     artifact_id: str,
     user_id: str = Depends(get_current_user),
@@ -180,6 +241,16 @@ async def download_artifact(
         
         if not path.exists():
             raise NotFoundError("Artifact file", artifact_id)
+        audit_logger = getattr(request.app.state, "audit_logger", None)
+        if audit_logger is not None:
+            await audit_logger.log(
+                request,
+                AuditEvent(
+                    action="ARTIFACT_DOWNLOAD",
+                    user_id=user_id,
+                    metadata={"job_id": job_id, "artifact_id": artifact_id, "path": str(path)},
+                ),
+            )
             
         if path.is_dir():
             # Create zip archive of the directory

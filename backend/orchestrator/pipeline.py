@@ -43,7 +43,8 @@ from .results import JobResult, StageResult, create_success_result, create_failu
 from backend.validator import validate_model
 from backend.compiler import canonicalize_model
 from backend.compiler.onnx_converter import detect_format, convert_to_onnx, InputFormat
-from backend.compiler.exceptions import UnsupportedFormatError, ConversionError
+from backend.compiler.exceptions import UnsupportedFormatError, ConversionError, UnsupportedOpError
+from backend.compiler.hashing import compute_graph_hash
 from backend.optimizer import (
     generate_variants,
     select_best_variant,
@@ -56,6 +57,8 @@ from backend.optimizer import (
     SelectedVariant,
 )
 from backend.benchmark import measure_latency, measure_memory, measure_size, create_sample_input, create_synthetic_dataset, evaluate_accuracy
+from backend.benchmark.dataset import ReferenceDataset, DatasetSample
+from backend.benchmark.accuracy import create_inference_session, run_inference, get_prediction
 from backend.deployment import generate_deployment_artifacts, TargetPlatform
 
 
@@ -251,7 +254,30 @@ class SOACPipeline:
             )
             
             return canonical_path
-            
+        except UnsupportedOpError as e:
+            unsupported = [op.lower() for op in e.unsupported_ops]
+            control_flow = {"loop", "scan", "if"}
+            if any(op.split(".")[-1].lower() in control_flow for op in unsupported):
+                # Fallback: use normalized ONNX as canonical to continue pipeline
+                import onnx
+                canonical_path = self.ctx.input_path
+                try:
+                    model = onnx.load(str(canonical_path))
+                    graph_hash = compute_graph_hash(model)
+                except Exception:
+                    graph_hash = "unknown"
+                self.ctx.add_artifact("canonical_onnx", canonical_path)
+                self.ctx.metadata["canonical_hash"] = graph_hash
+                duration = (time.perf_counter() - start) * 1000
+                self._record_stage(
+                    PipelineStage.CANONICALIZING,
+                    True,
+                    duration,
+                    "Control-flow ops detected (Loop/Scan/If); skipping canonicalization",
+                    {"canonical": str(canonical_path), "unsupported_ops": e.unsupported_ops},
+                )
+                return canonical_path
+            raise CanonicalizationFailedError(self.ctx.job_id, str(e), e)
         except Exception as e:
             raise CanonicalizationFailedError(self.ctx.job_id, str(e), e)
     
@@ -296,13 +322,39 @@ class SOACPipeline:
             self.ctx._audit(event="stage_attempt_start", stage=PipelineStage.BENCHMARKING.value, attempt=attempt)
             try:
                 self.ctx.log(f"Benchmarking variants (attempt {attempt}/{max_attempts})")
-
-                dataset = create_synthetic_dataset(num_samples=20, seed=42)
+                baseline_variant = next((v for v in variants if getattr(v, "variant_type", None) == VariantType.BASELINE and v.is_valid), None)
+                dataset: ReferenceDataset
+                if baseline_variant is not None:
+                    sample_input = create_sample_input(baseline_variant.onnx_path)
+                    session = create_inference_session(baseline_variant.onnx_path)
+                    samples: list[DatasetSample] = []
+                    import numpy as np
+                    rng = np.random.RandomState(42)
+                    shape = tuple(int(d) for d in sample_input.shape)
+                    dtype = sample_input.dtype
+                    for i in range(20):
+                        if i == 0:
+                            x = sample_input
+                        else:
+                            if dtype.kind in {"i", "u"}:
+                                x = rng.randint(0, 10, size=shape, dtype=dtype)
+                            else:
+                                x = rng.randn(*shape).astype(dtype)
+                        y = get_prediction(run_inference(session, x))
+                        samples.append(DatasetSample(input_data=x, label=int(y), sample_id=f"baseline_pseudo_{i}"))
+                    dataset = ReferenceDataset(samples=samples, name="baseline_pseudo_dataset", num_classes=1000)
+                else:
+                    dataset = create_synthetic_dataset(num_samples=20, seed=42)
 
                 benchmarked = []
                 baseline_accuracy = None
 
-                for variant in variants:
+                ordered_variants = sorted(
+                    variants,
+                    key=lambda v: 0 if getattr(v, "variant_type", None) == VariantType.BASELINE else 1,
+                )
+
+                for variant in ordered_variants:
                     if not variant.is_valid:
                         benchmarked.append(variant)
                         continue
@@ -518,7 +570,7 @@ class SOACPipeline:
                     targets=requested_targets,
                     canonical_path=canonical_path,
                     policy=self.ctx.config.compilation_policy,
-                    original_input_path=self.ctx.input_path,
+                    original_input_path=Path(self.ctx.metadata.get("original_input_path", self.ctx.input_path)),
                 )
 
                 self.ctx.add_artifact("deployment", bundle.output_dir)
@@ -578,6 +630,9 @@ class SOACPipeline:
                 # Hash input file
                 input_hash = hash_file(self.ctx.input_path)
                 self.ctx.metadata["input_hash"] = input_hash
+                if self.ctx.config.deployment_targets:
+                    self.ctx.metadata["targets"] = list(self.ctx.config.deployment_targets)
+                self.ctx.metadata["policy"] = self.ctx.config.compilation_policy
                 
                 # Stage 1: Validation
                 self.run_normalization()
@@ -637,6 +692,120 @@ class SOACPipeline:
                 json_path, md_path = explain_report.save(self.ctx.work_dir)
                 self.ctx.add_artifact("explainability_json", json_path)
                 self.ctx.add_artifact("explainability_md", md_path)
+
+                try:
+                    import json as _json
+                    from backend.benchmark.size import count_parameters
+                    from backend.compiler.hashing import compute_weights_hash
+                    import onnx
+
+                    baseline_variant = next((v for v in benchmarked if v.variant_type == VariantType.BASELINE and v.is_valid), None)
+                    selected_variant = next((v for v in benchmarked if v.variant_id == selected_id and v.is_valid), None)
+
+                    baseline_params = count_parameters(baseline_variant.onnx_path) if baseline_variant else 0
+                    selected_params = count_parameters(selected_variant.onnx_path) if selected_variant else 0
+
+                    baseline_weights_hash = None
+                    selected_weights_hash = None
+                    try:
+                        if baseline_variant:
+                            baseline_weights_hash = compute_weights_hash(onnx.load(str(baseline_variant.onnx_path)))
+                        if selected_variant:
+                            selected_weights_hash = compute_weights_hash(onnx.load(str(selected_variant.onnx_path)))
+                    except Exception:
+                        baseline_weights_hash = baseline_weights_hash
+
+                    report = {
+                        "job_id": self.ctx.job_id,
+                        "original_input": {
+                            "path": self.ctx.metadata.get("original_input_path"),
+                            "name": self.ctx.metadata.get("original_input_name"),
+                            "ext": self.ctx.metadata.get("original_input_ext"),
+                            "detected_format": self.ctx.metadata.get("input_detected_format"),
+                        },
+                        "normalization": self.ctx.metadata.get("normalization"),
+                        "validation": self.ctx.metadata.get("validation"),
+                        "canonicalization": {
+                            "canonical_hash": canonical_hash,
+                            "canonical_path": str(canonical_path),
+                        },
+                        "selection": {
+                            "selected_variant_id": selected_id,
+                            "selection_reason": self.ctx.metadata.get("selection_reason"),
+                            "policy": self.ctx.config.compilation_policy,
+                        },
+                        "benchmark_summary": self.ctx.metadata.get("benchmark_summary"),
+                        "deployment": {
+                            "bundle_dir": str(deployment_path),
+                            "manifest_path": str(Path(deployment_path) / "manifest.json"),
+                            "targets": list(self.ctx.config.deployment_targets or []),
+                            "summary": self.ctx.metadata.get("deployment_summary"),
+                        },
+                        "variants": [
+                            {
+                                "variant_id": v.variant_id,
+                                "variant_type": v.variant_type.value,
+                                "status": v.status.value,
+                                "size_bytes": v.size_bytes,
+                                "graph_hash": v.graph_hash,
+                                "metrics": v.metrics.to_dict() if v.metrics else None,
+                                "error_message": v.error_message,
+                            }
+                            for v in benchmarked
+                        ],
+                        "weights": {
+                            "baseline_parameters": baseline_params,
+                            "selected_parameters": selected_params,
+                            "baseline_weights_hash": baseline_weights_hash,
+                            "selected_weights_hash": selected_weights_hash,
+                        },
+                        "fingerprint": self.ctx.metadata.get("fingerprint"),
+                    }
+
+                    report_json_path = self.ctx.work_dir / "conversion_report.json"
+                    report_json_path.write_text(_json.dumps(report, indent=2), encoding="utf-8")
+                    self.ctx.add_artifact("conversion_report_json", report_json_path)
+
+                    def _pct(value: float | None) -> str:
+                        if value is None:
+                            return "-"
+                        return f"{value * 100:.2f}%"
+
+                    summary = self.ctx.metadata.get("benchmark_summary") or {}
+                    acc_drop = summary.get("accuracy_drop") if isinstance(summary, dict) else None
+                    loss_text = _pct(acc_drop) if isinstance(acc_drop, (int, float)) else "-"
+
+                    report_md = "\n".join([
+                        "# SOAC Conversion Report",
+                        "",
+                        f"Job: {self.ctx.job_id}",
+                        "",
+                        "## Input",
+                        f"- Name: {self.ctx.metadata.get('original_input_name')}",
+                        f"- Format: {self.ctx.metadata.get('input_detected_format')}",
+                        "",
+                        "## Output",
+                        f"- Selected Variant: {selected_id}",
+                        f"- Policy: {self.ctx.config.compilation_policy}",
+                        "",
+                        "## Lossless Check",
+                        f"- Loss (prediction mismatch): {loss_text}",
+                        "",
+                        "## Weights",
+                        f"- Baseline params: {baseline_params}",
+                        f"- Selected params: {selected_params}",
+                        f"- Baseline weights hash: {baseline_weights_hash or '-'}",
+                        f"- Selected weights hash: {selected_weights_hash or '-'}",
+                        "",
+                        "## Deployment",
+                        f"- Targets: {', '.join(self.ctx.config.deployment_targets or []) or '-'}",
+                        f"- Bundle: {deployment_path}",
+                    ])
+                    report_md_path = self.ctx.work_dir / "conversion_report.md"
+                    report_md_path.write_text(report_md, encoding="utf-8")
+                    self.ctx.add_artifact("conversion_report_md", report_md_path)
+                except Exception:
+                    pass
                 
                 # Success!
                 self._transition(PipelineStage.COMPLETED)

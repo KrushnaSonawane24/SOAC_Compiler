@@ -228,11 +228,17 @@ def create_job_context(
         work_dir = Path(work_dir) / job_id
         work_dir.mkdir(parents=True, exist_ok=True)
     
+    original_path = Path(input_path)
     return JobContext(
         job_id=job_id,
-        input_path=Path(input_path),
+        input_path=original_path,
         config=config,
         work_dir=work_dir,
         created_at=datetime.now(timezone.utc).isoformat(),
         log_callback=log_callback,
+        metadata={
+            "original_input_path": str(original_path),
+            "original_input_name": original_path.name,
+            "original_input_ext": original_path.suffix.lower(),
+        },
     )

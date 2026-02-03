@@ -187,32 +187,64 @@ class JobManager:
             ))
         
         # Add artifacts
-        # 1. Deployment Bundle
+        job = self.store.get(job_id)
+        requested_targets = []
+        try:
+            user_config = job.metadata.get("user_config", {}) if isinstance(job.metadata, dict) else {}
+            if isinstance(user_config, dict):
+                requested_targets = user_config.get("targets", []) or []
+        except Exception:
+            requested_targets = []
+        if not requested_targets:
+            requested_targets = ["android"]
+        requested_target = requested_targets[0]
+
         if result.deployment_bundle:
-            path = Path(result.deployment_bundle)
-            if path.exists():
-                artifact_id = f"art_{uuid.uuid4().hex[:8]}"
-                fmt = "zip" if path.is_dir() else path.suffix.lstrip(".")
-                
-                self.store.set_artifact(
-                    job_id, 
-                    artifact_id, 
-                    ArtifactInfo(
-                        artifact_id=artifact_id,
-                        name="Deployment Bundle",
-                        platform="all",
-                        format=fmt,
-                        size_bytes=0, # calculated on download if dir
-                        status="available",
-                    ),
-                    path=str(path)
-                )
+            bundle_dir = Path(result.deployment_bundle)
+            manifest_path = bundle_dir / "manifest.json"
+            if manifest_path.exists():
+                try:
+                    import json
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    artifacts = manifest.get("artifacts", {}) if isinstance(manifest, dict) else {}
+                    info = artifacts.get(requested_target, {}) if isinstance(artifacts, dict) else {}
+                    out_path = info.get("path") if isinstance(info, dict) else None
+                    if out_path:
+                        p = Path(out_path)
+                        if p.exists():
+                            artifact_id = f"art_{uuid.uuid4().hex[:8]}"
+                            fmt = "zip" if p.is_dir() else p.suffix.lstrip(".")
+                            self.store.set_artifact(
+                                job_id,
+                                artifact_id,
+                                ArtifactInfo(
+                                    artifact_id=artifact_id,
+                                    name="Converted Model",
+                                    platform=requested_target,
+                                    format=fmt,
+                                    size_bytes=p.stat().st_size if p.is_file() else 0,
+                                    status="available",
+                                ),
+                                path=str(p),
+                            )
+                except Exception:
+                    pass
 
         # 2. General Artifacts (from pipeline context)
         if hasattr(result, 'artifacts') and result.artifacts:
+            allowed = {
+                "audit_log",
+                "build_fingerprint",
+                "explainability_json",
+                "explainability_md",
+                "conversion_report_json",
+                "conversion_report_md",
+            }
             for name, path_str in result.artifacts.items():
                 # Skip deployment bundle as it's already handled
                 if name == "deployment":
+                    continue
+                if name not in allowed:
                     continue
                     
                 path = Path(path_str)
@@ -232,7 +264,7 @@ class JobManager:
                         ArtifactInfo(
                             artifact_id=artifact_id,
                             name=name,
-                            platform="unknown",
+                            platform="report",
                             format=fmt,
                             size_bytes=path.stat().st_size if path.is_file() else 0,
                             status="available",
@@ -241,25 +273,7 @@ class JobManager:
                     )
 
         # 3. Stage Artifacts (legacy fallback)
-        for sr in result.stage_results:
-            if sr.artifacts:
-                for name, path_str in sr.artifacts.items():
-                    path = Path(path_str)
-                    if path.exists():
-                        artifact_id = f"art_{uuid.uuid4().hex[:8]}"
-                        self.store.set_artifact(
-                            job_id,
-                            artifact_id,
-                            ArtifactInfo(
-                                artifact_id=artifact_id,
-                                name=name,
-                                platform="unknown",
-                                format=path.suffix.lstrip("."),
-                                size_bytes=path.stat().st_size if path.is_file() else 0,
-                                status="available",
-                            ),
-                            path=str(path)
-                        )
+        # Intentionally not exposed to end-users to keep downloads clean.
         
         # Logs are handled in real-time via log_callback, so we don't need to add them here.
         # This prevents duplicate logs.

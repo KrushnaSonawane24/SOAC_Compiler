@@ -41,6 +41,9 @@ const pickPrimaryArtifact = (params: {
     if (params.state !== 'completed') return null;
     if (!params.artifacts.length) return null;
 
+    const converted = params.artifacts.find(a => a.name === 'Converted Model');
+    if (converted) return converted;
+
     if (params.selectedVariant) {
         const match = params.artifacts.find(a => a.name.toLowerCase().includes(params.selectedVariant!.toLowerCase()));
         if (match) return match;
@@ -50,7 +53,8 @@ const pickPrimaryArtifact = (params: {
     const byName = params.artifacts.find(a => preferNames.some(k => a.name.toLowerCase().includes(k)));
     if (byName) return byName;
 
-    return params.artifacts[0] ?? null;
+    const nonReport = params.artifacts.find(a => a.platform !== 'report');
+    return nonReport ?? params.artifacts[0] ?? null;
 };
 
 export const JobDetailPage: React.FC = () => {
@@ -325,16 +329,16 @@ export const JobDetailPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Quality/Accuracy */}
+                                    {/* Lossless */}
                                     <div className="p-4 rounded-lg border border-[color:var(--soac-border)] bg-[color:var(--soac-card-hover)]">
-                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Quality Check</div>
-                                        <div className={`text-3xl font-bold ${(summary.accuracy_drop ?? 0) > 0.02 ? 'text-[color:var(--soac-error)]' : 'text-[color:var(--soac-success)]'}`}>
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-1">Lossless Check (vs baseline)</div>
+                                        <div className={`text-3xl font-bold ${(summary.accuracy_drop ?? 0) > 0.01 ? 'text-[color:var(--soac-error)]' : 'text-[color:var(--soac-success)]'}`}>
                                             {summary.accuracy_drop !== undefined && summary.accuracy_drop !== null 
-                                                ? (summary.accuracy_drop <= 0.001 ? 'Lossless' : `-${(summary.accuracy_drop * 100).toFixed(2)}%`) 
+                                                ? (summary.accuracy_drop <= 0.001 ? 'Lossless' : `Loss: ${(summary.accuracy_drop * 100).toFixed(2)}%`) 
                                                 : 'Verified'}
                                         </div>
                                         <div className="text-xs text-[color:var(--soac-muted)] mt-2">
-                                            {(summary.accuracy_drop ?? 0) > 0.02 ? 'Exceeds threshold' : 'Within 2% threshold'}
+                                            {(summary.accuracy_drop ?? 0) > 0.01 ? 'Exceeds threshold' : 'Within threshold'}
                                         </div>
                                     </div>
                                 </div>
@@ -518,7 +522,7 @@ export const JobDetailPage: React.FC = () => {
 
                 {activeTab === 'artifacts' && (
                     <div className="card">
-                        <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Deployment Artifacts</h3>
+                        <h3 className="text-lg font-semibold text-[color:var(--soac-text)] mb-4">Downloads</h3>
 
                         {job.state !== 'completed' ? (
                             <div className="text-[color:var(--soac-muted)] text-center py-8">
@@ -530,25 +534,39 @@ export const JobDetailPage: React.FC = () => {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {artifacts.map((artifact) => (
-                                    <div
-                                        key={artifact.artifact_id}
-                                        className="flex items-center justify-between rounded-lg p-4 brutal-panel"
-                                    >
+                                {artifacts.filter((a) => a.platform !== 'report').map((artifact) => (
+                                    <div key={artifact.artifact_id} className="flex items-center justify-between rounded-lg p-4 brutal-panel">
                                         <div>
                                             <div className="text-[color:var(--soac-text)] font-medium">{artifact.name}</div>
                                             <div className="text-[color:var(--soac-muted)] text-sm">
-                                                {artifact.platform} • {artifact.format} • {(artifact.size_bytes / 1024).toFixed(1)} KB • {artifact.status}
+                                                {artifact.platform} • {artifact.format} • {(artifact.size_bytes / 1024).toFixed(1)} KB
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleDownload(artifact)}
-                                            className="cta-btn cta-btn--sm magnetic"
-                                        >
+                                        <button onClick={() => handleDownload(artifact)} className="cta-btn cta-btn--sm magnetic">
                                             <span>Download</span>
                                         </button>
                                     </div>
                                 ))}
+                                {artifacts.some((a) => a.platform === 'report') ? (
+                                    <div className="pt-2">
+                                        <div className="text-[color:var(--soac-muted)] text-sm mb-2">Reports</div>
+                                        <div className="space-y-3">
+                                            {artifacts.filter((a) => a.platform === 'report').map((artifact) => (
+                                                <div key={artifact.artifact_id} className="flex items-center justify-between rounded-lg p-4 brutal-panel">
+                                                    <div>
+                                                        <div className="text-[color:var(--soac-text)] font-medium">{artifact.name}</div>
+                                                        <div className="text-[color:var(--soac-muted)] text-sm">
+                                                            {artifact.format} • {(artifact.size_bytes / 1024).toFixed(1)} KB
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => handleDownload(artifact)} className="cta-btn cta-btn--sm magnetic">
+                                                        <span>Download</span>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                     </div>

@@ -8,6 +8,7 @@ export const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
@@ -19,7 +20,16 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await register({ email, password });
+      const pwd = password;
+      if (pwd.length < 8 || pwd.length > 14) {
+        setError('Password must be 8–14 characters.');
+        return;
+      }
+      if (pwd !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+      await register({ email, password, confirm_password: confirmPassword, display_name: username });
       navigate('/registered');
     } catch (err: unknown) {
       if (err instanceof AxiosError && err.response) {
@@ -42,6 +52,10 @@ export const RegisterPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const isPasswordLengthValid = password.length >= 8 && password.length <= 14;
+  const isPasswordMatch = password === confirmPassword;
+  const canSubmit = Boolean(username) && Boolean(email) && Boolean(password) && Boolean(confirmPassword) && isPasswordLengthValid && isPasswordMatch;
 
   return (
     <div className="min-h-screen">
@@ -95,8 +109,15 @@ export const RegisterPage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
 
-            <button type="submit" className="cta-btn magnetic" disabled={isLoading || !username}>
+            <button type="submit" className="cta-btn magnetic" disabled={isLoading || !canSubmit}>
               <span>{isLoading ? 'INITIALIZING…' : 'INITIALIZE'}</span>
             </button>
 

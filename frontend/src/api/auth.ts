@@ -12,6 +12,8 @@ export interface LoginRequest {
 export interface RegisterRequest {
     email: string;
     password: string;
+    confirm_password: string;
+    display_name: string;
 }
 
 export interface AuthResponse {

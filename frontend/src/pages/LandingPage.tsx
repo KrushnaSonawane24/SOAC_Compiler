@@ -6,7 +6,7 @@ import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  const heroWords = useMemo(() => ['BRUTAL', 'MAGIC'], []);
+  const heroWords = useMemo(() => ['NEURAL', 'FORGE'], []);
   const heroTitleContainerRef = useRef<HTMLDivElement | null>(null);
   const heroTitleRef = useRef<HTMLHeadingElement | null>(null);
   const [heroReady, setHeroReady] = useState(false);

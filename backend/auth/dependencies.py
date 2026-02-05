@@ -11,7 +11,7 @@ from typing import Optional
 
 from .models import User, TokenPayload
 from .jwt import verify_token
-from .user_store import get_user_store, UserStore
+from .user_store import AsyncUserStore, get_user_store_dep
 from .exceptions import InvalidTokenError, TokenExpiredError, UserNotFoundError
 
 
@@ -53,7 +53,7 @@ async def get_token_payload(
 
 async def get_current_user(
     token: TokenPayload = Depends(get_token_payload),
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ) -> User:
     """
     Get current authenticated user.
@@ -62,7 +62,7 @@ async def get_current_user(
     Raises 401 if user not found.
     """
     try:
-        return store.get(token.user_id)
+        return await store.get(token.user_id)
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -79,7 +79,7 @@ async def get_current_user_id(
 
 async def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ) -> Optional[User]:
     """Get user if authenticated, None otherwise."""
     if credentials is None:
@@ -87,6 +87,6 @@ async def get_optional_user(
     
     try:
         payload = verify_token(credentials.credentials)
-        return store.get(payload.user_id)
+        return await store.get(payload.user_id)
     except (InvalidTokenError, TokenExpiredError, UserNotFoundError):
         return None

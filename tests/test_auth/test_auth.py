@@ -37,7 +37,7 @@ def test_user(client):
     store = get_user_store()
     return store.register(
         email="test@example.com",
-        password="testpassword123",
+        password="testpass12",
         display_name="Test User",
     )
 
@@ -50,6 +50,7 @@ class TestRegistration:
         response = client.post("/auth/register", json={
             "email": "new@example.com",
             "password": "password123",
+            "confirm_password": "password123",
             "display_name": "New User",
         })
         
@@ -63,6 +64,8 @@ class TestRegistration:
         response = client.post("/auth/register", json={
             "email": "test@example.com",
             "password": "password123",
+            "confirm_password": "password123",
+            "display_name": "Test User",
         })
         
         assert response.status_code == 409
@@ -76,7 +79,7 @@ class TestLogin:
         """Login returns valid token."""
         response = client.post("/auth/login", json={
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "testpass12",
         })
         
         assert response.status_code == 200

@@ -365,19 +365,36 @@ code {
 .cta-btn {
   position: relative;
   padding: 0.8rem 2rem;
-  background: var(--brutal-accent);
-  color: #000;
+  background: rgba(168, 217, 0, 0.08);
+  color: var(--brutal-accent);
   font-weight: 700;
-  border: 1px solid rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(168, 217, 0, 0.55);
   text-transform: none;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
   overflow: hidden;
-  transition: all 0.3s;
+  transition: color 0.3s, border-color 0.3s, box-shadow 0.3s;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  z-index: 0;
+}
+
+.cta-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: var(--brutal-accent);
+  transform: translateX(-101%);
+  transition: transform 0.42s cubic-bezier(0.19, 1, 0.22, 1);
+  will-change: transform;
+  z-index: 0;
+}
+
+.cta-btn:hover::before {
+  transform: translateX(0);
 }
 
 .cta-btn.cta-btn--ghost {
@@ -387,13 +404,12 @@ code {
 }
 
 .cta-btn.cta-btn--ghost:hover {
-  filter: none;
-  background: rgba(255, 255, 255, 0.085);
-  border-color: rgba(224, 224, 224, 0.45);
+  border-color: var(--brutal-accent);
+  box-shadow: 0 0 0 2px rgba(168, 217, 0, 0.16), 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
 .cta-btn.cta-btn--ghost:hover span {
-  color: #fff;
+  color: #000;
 }
 
 .cta-btn span {
@@ -407,7 +423,8 @@ code {
 }
 
 .cta-btn:hover {
-  filter: brightness(0.98);
+  border-color: var(--brutal-accent);
+  box-shadow: 0 0 0 2px rgba(168, 217, 0, 0.16), 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
 .brutal-nav.scrolled .cta-btn {

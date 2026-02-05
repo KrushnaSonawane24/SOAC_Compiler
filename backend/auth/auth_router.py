@@ -7,15 +7,14 @@ Authentication endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
 import os
 from urllib.parse import quote, urlparse
 
 from .models import User, AuthProvider
-from .password import hash_password
 from .jwt import create_access_token
-from .user_store import UserStore, get_user_store
+from .user_store import AsyncUserStore, get_user_store_dep
 from .exceptions import (
     InvalidCredentialsError,
     UserExistsError,
@@ -55,14 +54,15 @@ def _frontend_success_redirect(token: str) -> str:
 class RegisterRequest(BaseModel):
     """Registration request."""
     email: EmailStr
-    password: str
-    display_name: Optional[str] = None
+    display_name: constr(min_length=1, max_length=60)
+    password: constr(min_length=8, max_length=14)
+    confirm_password: constr(min_length=8, max_length=14)
 
 
 class LoginRequest(BaseModel):
     """Login request."""
     email: EmailStr
-    password: str
+    password: constr(min_length=8, max_length=14)
 
 
 class TokenResponse(BaseModel):
@@ -96,15 +96,20 @@ class OAuthLoginResponse(BaseModel):
 async def register(
     http_request: Request,
     request: RegisterRequest,
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ):
     """
     Register a new user.
     
     Creates account and returns JWT token.
     """
+    if request.password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Passwords do not match", "error_code": "PASSWORD_MISMATCH"},
+        )
     try:
-        user = store.register(
+        user = await store.register(
             email=request.email,
             password=request.password,
             display_name=request.display_name,
@@ -149,7 +154,7 @@ async def register(
 async def login(
     http_request: Request,
     request: LoginRequest,
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ):
     """
     Login with email and password.
@@ -157,7 +162,7 @@ async def login(
     Returns JWT token if credentials are valid.
     """
     try:
-        user = store.authenticate(request.email, request.password)
+        user = await store.authenticate(request.email, request.password)
         token = create_access_token(user)
         audit_logger = getattr(http_request.app.state, "audit_logger", None)
         if audit_logger is not None:
@@ -257,7 +262,7 @@ async def github_callback(
     code: str,
     state: str,
     request: Request,
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ):
     """
     GitHub OAuth callback.
@@ -282,7 +287,7 @@ async def github_callback(
         user_info = await provider.get_user_info(access_token)
         
         # Find or create user
-        user = store.find_or_create_oauth_user(
+        user = await store.find_or_create_oauth_user(
             provider=AuthProvider.GITHUB,
             provider_id=user_info.provider_id,
             email=user_info.email,
@@ -343,7 +348,7 @@ async def google_callback(
     code: str,
     state: str,
     request: Request,
-    store: UserStore = Depends(get_user_store),
+    store: AsyncUserStore = Depends(get_user_store_dep),
 ):
     """
     Google OAuth callback.
@@ -363,7 +368,7 @@ async def google_callback(
         access_token = await provider.exchange_code(code, callback_uri)
         user_info = await provider.get_user_info(access_token)
         
-        user = store.find_or_create_oauth_user(
+        user = await store.find_or_create_oauth_user(
             provider=AuthProvider.GOOGLE,
             provider_id=user_info.provider_id,
             email=user_info.email,

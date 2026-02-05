@@ -19,7 +19,7 @@ from .exceptions import (
 )
 from .password import hash_password, verify_password
 from .jwt import create_access_token, verify_token
-from .user_store import UserStore, get_user_store
+from .user_store import InMemoryUserStore as UserStore, get_user_store
 from .dependencies import get_current_user, get_current_user_id, get_optional_user
 from .auth_router import router as auth_router
 

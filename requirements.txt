@@ -19,6 +19,9 @@ bcrypt>=4.1.0
 # HTTP
 httpx>=0.26.0
 
+# MongoDB (persistent auth + audit logs)
+motor>=3.7.0
+
 # Scientific
 numpy>=1.26.0
 h5py>=3.10.0

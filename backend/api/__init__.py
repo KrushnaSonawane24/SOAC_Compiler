@@ -17,6 +17,7 @@ from .audit import router as audit_router
 from backend.auth import auth_router
 from backend.audit import AuditLogger
 from backend.db import create_mongo_client, close_mongo_client
+from backend.auth.mongo_user_store import ensure_auth_indexes
 
 
 def _load_dotenv_if_present() -> None:
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
         app.state.mongo_db = db
         app.state.audit_logger = AuditLogger(db)
         await app.state.audit_logger.ensure_indexes()
+        await ensure_auth_indexes(db)
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
